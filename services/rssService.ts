@@ -18,36 +18,52 @@ export interface DiscoveryProvider {
  */
 const fetchWithProxy = async (targetUrl: string, isJson: boolean = false): Promise<string | any> => {
   const sanitizedUrl = targetUrl.trim();
+  const failures: string[] = [];
   
   // Try direct fetch first for speed
   try {
     const directRes = await fetch(sanitizedUrl, { signal: AbortSignal.timeout(3000) });
     if (directRes.ok) return isJson ? await directRes.json() : await directRes.text();
-  } catch (e) {
-    console.debug("Direct fetch skipped/failed, proceeding to proxies...");
+    failures.push(`Direct: ${directRes.status} ${directRes.statusText}`);
+  } catch (e: any) {
+    failures.push(`Direct: ${e.message || 'Blocked/Timeout'}`);
   }
 
   for (const proxyBase of APP_CONFIG.proxyUrls) {
     try {
       const proxyUrl = `${proxyBase}${encodeURIComponent(sanitizedUrl)}`;
       const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-      if (!response.ok) continue;
+      
+      if (!response.ok) {
+        failures.push(`${proxyBase}: HTTP ${response.status}`);
+        continue;
+      }
 
       // Handle AllOrigins specific JSON wrapper
       if (proxyBase.includes('allorigins')) {
         const data = await response.json();
         const content = data.contents;
-        if (!content) continue;
+        if (!content) {
+          failures.push(`${proxyBase}: Empty wrapper contents`);
+          continue;
+        }
         return isJson ? (typeof content === 'string' ? JSON.parse(content) : content) : content;
       }
 
       return isJson ? await response.json() : await response.text();
-    } catch (err) {
-      console.warn(`Proxy ${proxyBase} failed for ${sanitizedUrl}:`, err);
+    } catch (err: any) {
+      failures.push(`${proxyBase}: ${err.message || 'Error'}`);
       continue;
     }
   }
-  throw new Error(`Failed to fetch resource after trying all proxies: ${targetUrl}`);
+  
+  const error = new Error(`Connection failed. Exhausted all available retrieval methods.`);
+  (error as any).diagnostics = {
+    url: sanitizedUrl,
+    attempts: failures,
+    timestamp: new Date().toISOString()
+  };
+  throw error;
 };
 
 /**
@@ -90,13 +106,16 @@ const parseRssXml = (text: string, originalUrl: string): { podcast: Podcast, epi
   
   const parserError = xml.getElementsByTagName("parsererror")[0];
   if (parserError) {
-    throw new Error("The content returned is not valid XML.");
+    const snippet = text.trim().substring(0, 200).toLowerCase();
+    const isHtml = snippet.includes('<!doctype html') || snippet.includes('<html');
+    if (isHtml) throw new Error("Invalid format. The link returned a webpage instead of a feed.");
+    throw new Error("The broadcast signal is corrupted or invalid XML.");
   }
 
   const channel = xml.querySelector("channel");
   if (!channel) throw new Error("Invalid RSS: <channel> element not found.");
 
-  const title = getTagContent(channel, "title") || "Untitled Podcast";
+  const title = getTagContent(channel, "title") || "Untitled Broadcast";
   const description = getTagContent(channel, "description") || "";
   
   let image = getTagAttr(channel, "itunes:image", "href") || 

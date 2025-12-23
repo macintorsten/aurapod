@@ -8,6 +8,7 @@ interface EpisodeItemProps {
   isHistory?: boolean;
   isQueue?: boolean;
   isActive?: boolean;
+  isLoading?: boolean;
   onPlay: () => void;
   onQueue?: () => void;
   onRemove?: () => void;
@@ -20,35 +21,45 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
   isHistory, 
   isQueue, 
   isActive,
+  isLoading,
   onPlay, 
   onQueue, 
   onRemove, 
   onShare 
 }) => {
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const isCompleted = progress >= 95;
 
   return (
-    <div className={`group relative bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900/60 p-4 md:p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800/50 transition-all duration-300 shadow-sm hover:shadow-md ${isActive ? 'ring-2 ring-indigo-500 shadow-lg bg-white dark:bg-zinc-900' : ''}`}>
-      <div className="flex gap-4 md:gap-8 items-start">
-        {/* Thumbnail & Play Overlay */}
+    <div className={`group relative bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900/60 p-4 md:p-6 rounded-[2rem] border border-zinc-100 dark:border-zinc-800/50 transition-all duration-300 shadow-sm hover:shadow-md ${isActive ? 'ring-2 ring-indigo-500 shadow-lg bg-white dark:bg-zinc-900' : ''}`}>
+      <div className={`flex gap-4 md:gap-8 items-start ${progress > 0 ? 'pb-4' : ''}`}>
         <div className="relative shrink-0 w-20 h-20 md:w-32 md:h-32 rounded-2xl overflow-hidden shadow-md group-hover:shadow-xl transition-all duration-500">
           <img 
             src={episode.image || episode.podcastImage} 
             className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700 ease-out" 
             alt={episode.title} 
           />
-          <div className="absolute inset-0 bg-indigo-600/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className={`absolute inset-0 bg-indigo-600/30 flex items-center justify-center transition-opacity duration-300 ${isLoading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <button 
               onClick={(e) => { e.stopPropagation(); onPlay(); }}
-              className="w-10 h-10 md:w-14 md:h-14 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full flex items-center justify-center shadow-2xl transform scale-75 group-hover:scale-100 transition duration-300 hover:bg-white hover:scale-110"
+              disabled={isLoading}
+              className={`w-10 h-10 md:w-14 md:h-14 bg-white/90 backdrop-blur-sm text-indigo-600 rounded-full flex items-center justify-center shadow-2xl transform transition duration-300 ${isLoading ? 'scale-100' : 'scale-75 group-hover:scale-100 hover:scale-110'}`}
               aria-label="Play Episode"
             >
-              <i className="fa-solid fa-play ml-1 text-lg"></i>
+              {isLoading ? (
+                <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin"></div>
+              ) : (
+                <i className="fa-solid fa-play ml-1 text-lg"></i>
+              )}
             </button>
           </div>
+          {isCompleted && (
+            <div className="absolute top-2 right-2 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-zinc-900 z-10 animate-fade-in">
+              <i className="fa-solid fa-check text-[10px]"></i>
+            </div>
+          )}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
           <div className="flex items-center gap-2 mb-2">
              {episode.podcastTitle && (
@@ -61,98 +72,26 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
                </>
              )}
           </div>
-          
-          <h4 
-            onClick={onPlay}
-            className="text-base md:text-xl font-bold text-zinc-900 dark:text-white truncate mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition cursor-pointer leading-tight"
-          >
-            {episode.title}
-          </h4>
-
-          {/* Description Reveal */}
+          <h4 onClick={onPlay} className={`text-base md:text-xl font-bold truncate mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition cursor-pointer leading-tight ${isCompleted ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-white'}`}>{episode.title}</h4>
           {episode.description && !isQueue && (
             <div className="relative mb-3">
-              <div 
-                className={`text-xs md:text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium transition-all duration-300 ${showFullDesc ? '' : 'line-clamp-2'}`}
-                dangerouslySetInnerHTML={{ __html: episode.description }}
-              ></div>
-              <button 
-                onClick={(e) => { e.stopPropagation(); setShowFullDesc(!showFullDesc); }}
-                className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors mt-2 flex items-center gap-1.5 py-1 px-2 -ml-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-                aria-expanded={showFullDesc}
-              >
-                <span>{showFullDesc ? 'Show Less' : 'Read More'}</span>
-                <i className={`fa-solid fa-chevron-${showFullDesc ? 'up' : 'down'} transition-transform duration-300 ${showFullDesc ? 'rotate-0' : 'animate-bounce-subtle'}`}></i>
+              <div className={`text-xs md:text-sm leading-relaxed font-medium transition-all duration-300 ${showFullDesc ? '' : 'line-clamp-2'} text-zinc-500 dark:text-zinc-400`} dangerouslySetInnerHTML={{ __html: episode.description }}></div>
+              <button onClick={(e) => { e.stopPropagation(); setShowFullDesc(!showFullDesc); }} className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 transition-colors mt-2 flex items-center gap-1.5 py-1 px-2 -ml-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20">
+                <span>{showFullDesc ? 'Show Less' : 'Read More'}</span><i className={`fa-solid fa-chevron-${showFullDesc ? 'up' : 'down'}`}></i>
               </button>
             </div>
           )}
-
           <div className="mt-auto flex flex-wrap items-center gap-x-6 gap-y-2 text-zinc-400">
-            {episode.duration && (
-              <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800/50 px-2 py-1 rounded-md">
-                <i className="fa-regular fa-clock text-indigo-500"></i> {episode.duration}
-              </span>
-            )}
-            
+            {episode.duration && <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 px-2 py-1 bg-zinc-100 dark:bg-zinc-800/50 rounded-md"><i className="fa-regular fa-clock text-indigo-500"></i> {episode.duration}</span>}
             <div className="flex items-center gap-4">
-              {onQueue && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onQueue(); }} 
-                  className="text-[10px] font-bold uppercase tracking-widest hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-2 group/action"
-                >
-                  <i className="fa-solid fa-plus group-hover/action:rotate-90 transition-transform"></i> Queue
-                </button>
-              )}
-
-              {onShare && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onShare(); }} 
-                  className="text-[10px] font-bold uppercase tracking-widest hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-2 group/action"
-                >
-                  <i className="fa-solid fa-share-nodes group-hover/action:scale-110 transition-transform"></i> Share
-                </button>
-              )}
-
-              {onRemove && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onRemove(); }} 
-                  className="text-[10px] font-bold uppercase tracking-widest hover:text-red-500 transition flex items-center gap-2 group/action"
-                >
-                  <i className="fa-solid fa-trash-can group-hover/action:shake transition-transform"></i> Remove
-                </button>
-              )}
+              {onQueue && <button onClick={(e) => { e.stopPropagation(); onQueue(); }} className="text-[10px] font-bold uppercase tracking-widest hover:text-indigo-600 transition flex items-center gap-2 group/action"><i className="fa-solid fa-plus group-hover/action:rotate-90 transition-transform"></i> Queue</button>}
+              {onShare && <button onClick={(e) => { e.stopPropagation(); onShare(); }} className="text-[10px] font-bold uppercase tracking-widest hover:text-indigo-600 transition flex items-center gap-2 group/action"><i className="fa-solid fa-share-nodes"></i> Share</button>}
+              {onRemove && <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="text-[10px] font-bold uppercase tracking-widest hover:text-red-500 transition flex items-center gap-2 group/action"><i className="fa-solid fa-trash-can"></i> Remove</button>}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Progress Bar at bottom of card */}
-      {progress > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-zinc-200/50 dark:bg-zinc-800/50 rounded-b-3xl overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-400 transition-all duration-700 ease-in-out"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-      )}
-      
-      <style>{`
-        @keyframes bounce-subtle {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(2px); }
-        }
-        .animate-bounce-subtle {
-          animation: bounce-subtle 2s infinite;
-        }
-        .group:hover .group-hover\\:shake {
-          animation: shake 0.5s ease-in-out;
-        }
-        @keyframes shake {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-10deg); }
-          75% { transform: rotate(10deg); }
-        }
-      `}</style>
+      {progress > 0 && <div className="absolute bottom-3 left-6 right-6 h-1 bg-zinc-200/50 dark:bg-zinc-800/50 rounded-full overflow-hidden"><div className={`h-full transition-all duration-700 ease-in-out rounded-full ${isCompleted ? 'bg-green-500' : 'bg-indigo-600'}`} style={{ width: `${progress}%` }}></div></div>}
     </div>
   );
 };

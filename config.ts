@@ -11,7 +11,18 @@ export interface AppConfig {
       trendingUrl: string;
       lookupUrl: string;
     }
-  }
+  };
+  playback: {
+    seekIncrement: number; // For arrow keys
+    skipIncrement: number; // For J/L keys
+  };
+  shortcuts: {
+    playPause: string[];
+    back: string;
+    forward: string;
+    next: string;
+    seekPrefix: 'digit' | 'arrow';
+  };
 }
 
 export const APP_CONFIG: AppConfig = {
@@ -28,5 +39,16 @@ export const APP_CONFIG: AppConfig = {
       trendingUrl: "https://itunes.apple.com/us/rss/toppodcasts/limit=20/json",
       lookupUrl: "https://itunes.apple.com/lookup"
     }
+  },
+  playback: {
+    seekIncrement: 5,
+    skipIncrement: 10
+  },
+  shortcuts: {
+    playPause: ['k', ' '],
+    back: 'j',
+    forward: 'l',
+    next: 'n',
+    seekPrefix: 'digit'
   }
 };

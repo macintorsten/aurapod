@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Podcast, Episode, PlaybackState, Theme } from './types';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Podcast, Episode, PlaybackState, Theme, AppError, ErrorCategory } from './types';
 import { storageService } from './services/storageService';
 import { rssService } from './services/rssService';
 import { shareService, SharedData } from './services/shareService';
@@ -8,6 +8,12 @@ import { APP_CONFIG } from './config';
 import Player from './components/Player';
 import EpisodeItem from './components/EpisodeItem';
 import confetti from 'canvas-confetti';
+
+interface VersionInfo {
+  version: string;
+  codename: string;
+  buildDate: string;
+}
 
 const App: React.FC = () => {
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
@@ -19,24 +25,40 @@ const App: React.FC = () => {
   const [playerAutoplay, setPlayerAutoplay] = useState(true);
   const [queue, setQueue] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingEpisodeId, setLoadingEpisodeId] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [newFeedUrl, setNewFeedUrl] = useState('');
+  const [errors, setErrors] = useState<AppError[]>([]);
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Podcast[]>([]);
   const [suggestedPodcasts, setSuggestedPodcasts] = useState<Podcast[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [view, setView] = useState<'home' | 'podcast' | 'history' | 'new' | 'queue'>('home');
+  const [view, setView] = useState<'home' | 'podcast' | 'archive' | 'new'>('home');
   const [theme, setTheme] = useState<Theme>(storageService.getTheme() || APP_CONFIG.defaultTheme);
-  
-  // PWA Installation State
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
-
-  // Share Modal State
+  const [version, setVersion] = useState<VersionInfo>({ version: '0.0.1', codename: 'Aurora', buildDate: '2023-11-20' });
   const [shareData, setShareData] = useState<SharedData | null>(null);
 
   const searchTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    fetch('./version.json')
+      .then(res => res.json())
+      .then(setVersion)
+      .catch(err => console.debug("Version metadata unavailable", err));
+  }, []);
+
+  const logError = useCallback((category: ErrorCategory, message: string, error?: any, context?: any) => {
+    const diagnostics = (error as any)?.diagnostics || {};
+    const errorObj: AppError = {
+      category,
+      message,
+      details: error?.stack || error?.message || String(error),
+      timestamp: Date.now(),
+      context: { ...context, diagnostics, userAgent: navigator.userAgent, href: window.location.href }
+    };
+    setErrors(prev => [errorObj, ...prev].slice(0, 20));
+    console.error(`[AuraPod:${category}]`, message, errorObj);
+  }, []);
 
   const handleImportDirect = useCallback(async (data: SharedData) => {
     setLoading(true);
@@ -51,7 +73,6 @@ const App: React.FC = () => {
           author: 'Independent Broadcast',
           description: ''
         };
-
         const standaloneEpisode: Episode = {
           id: data.e || 'shared-track',
           podcastId: podcastId,
@@ -64,90 +85,55 @@ const App: React.FC = () => {
           link: '',
           podcastTitle: data.st
         };
-
         setActivePodcast(standalonePodcast);
         setEpisodes([standaloneEpisode]);
         setCurrentEpisode(standaloneEpisode);
         setPlayerAutoplay(false);
         setView('podcast');
-        
         if (data.p) {
           try {
             const { podcast: fullPod, episodes: fullEps } = await rssService.fetchPodcast(data.p);
             setActivePodcast(fullPod);
             setEpisodes(fullEps);
           } catch (e) {
-            console.warn("Background feed refresh failed", e);
+            logError('network', "Background feed sync failed", e, { url: data.p });
           }
         }
-      } 
-      else if (data.p) {
+      } else if (data.p) {
         const { podcast, episodes: fetchedEpisodes } = await rssService.fetchPodcast(data.p);
         setActivePodcast(podcast);
         setEpisodes(fetchedEpisodes);
         setView('podcast');
-
         if (data.e) {
           const ep = fetchedEpisodes.find(it => it.id === data.e);
-          if (ep) {
-            setPlayerAutoplay(false);
-            setCurrentEpisode(ep);
-          }
-        }
-      } 
-      else if (data.f && data.f.length > 0) {
-        if (data.f.length === 1) {
-          const { podcast, episodes: fetchedEpisodes } = await rssService.fetchPodcast(data.f[0]);
-          setActivePodcast(podcast);
-          setEpisodes(fetchedEpisodes);
-          setView('podcast');
-        } else {
-          setView('home'); 
+          if (ep) { setPlayerAutoplay(false); setCurrentEpisode(ep); }
         }
       }
-
       confetti({ particleCount: 40, spread: 70, origin: { y: 0.7 }, colors: ['#6366f1', '#a855f7', '#ec4899'] });
     } catch (err) {
-      setErrorMsg("Failed to synchronize with the shared wave.");
+      logError('system', "Failed to synchronize shared data", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [logError]);
 
   useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setShowInstallBanner(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-
-    if (navigator.storage && navigator.storage.persist) {
-      navigator.storage.persist().then(persistent => {
-        if (persistent) console.log("Storage is persistent.");
-      });
-    }
-
-    const loadedPodcasts = storageService.getPodcasts();
-    setPodcasts(loadedPodcasts);
+    setPodcasts(storageService.getPodcasts());
     setHistory(storageService.getHistory());
     setQueue(storageService.getQueue());
-
     const fetchTrending = async () => {
       setLoadingSuggestions(true);
-      const trending = await rssService.getTrendingPodcasts();
-      setSuggestedPodcasts(trending);
-      setLoadingSuggestions(false);
+      try {
+        const trending = await rssService.getTrendingPodcasts();
+        setSuggestedPodcasts(trending);
+      } catch (err) {
+        logError('network', "Trending feed failed", err);
+      } finally {
+        setLoadingSuggestions(false);
+      }
     };
     fetchTrending();
-
     const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    if (viewParam === 'history') setView('history');
-    if (viewParam === 'new') setView('new');
-    if (viewParam === 'queue') setView('queue');
-
     const shareCode = params.get('s');
     if (shareCode) {
       const decoded = shareService.decode(shareCode);
@@ -156,83 +142,47 @@ const App: React.FC = () => {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
+  }, [handleImportDirect, logError]);
 
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
-  }, [handleImportDirect]);
-
-  const installApp = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setShowInstallBanner(false);
-    }
-    setDeferredPrompt(null);
-  };
-
-  const syncHistory = useCallback(() => {
-    setHistory(storageService.getHistory());
-  }, []);
+  const syncHistory = useCallback(() => setHistory(storageService.getHistory()), []);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    const applyTheme = (t: Theme) => {
-      let actualTheme = t;
-      if (t === 'system') {
-        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      root.classList.remove('light', 'dark');
-      root.classList.add(actualTheme);
-    };
-
-    applyTheme(theme);
+    const actualTheme = theme === 'system' 
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    root.classList.remove('light', 'dark');
+    root.classList.add(actualTheme);
     storageService.saveTheme(theme);
-
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => applyTheme('system');
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    }
   }, [theme]);
-
-  useEffect(() => {
-    storageService.saveQueue(queue);
-  }, [queue]);
 
   const addToQueue = (episode: Episode) => {
     if (queue.find(e => e.id === episode.id)) return;
-    setQueue(prev => [...prev, episode]);
+    const updated = [...queue, episode];
+    setQueue(updated);
+    storageService.saveQueue(updated);
+    confetti({ particleCount: 15, spread: 30, origin: { y: 0.9 } });
   };
 
   const removeFromQueue = (episodeId: string) => {
-    setQueue(prev => prev.filter(e => e.id !== episodeId));
-  };
-
-  const clearQueue = () => {
-    setQueue([]);
+    const updated = queue.filter(e => e.id !== episodeId);
+    setQueue(updated);
+    storageService.saveQueue(updated);
   };
 
   const playNext = () => {
     let tempQueue = [...queue];
-    let foundNext = false;
-
-    while (tempQueue.length > 0) {
+    if (tempQueue.length > 0) {
       const nextEpisode = tempQueue.shift()!;
       const pod = podcasts.find(p => p.id === nextEpisode.podcastId);
-      
       if (pod) {
         setActivePodcast(pod);
         setPlayerAutoplay(true);
         setCurrentEpisode(nextEpisode);
         setQueue(tempQueue);
-        foundNext = true;
-        break;
+        storageService.saveQueue(tempQueue);
       }
-    }
-
-    if (!foundNext) {
-      setQueue([]);
+    } else {
       setCurrentEpisode(null);
     }
   };
@@ -240,19 +190,14 @@ const App: React.FC = () => {
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current);
-
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
+    if (!query.trim()) { setSearchResults([]); return; }
     searchTimeoutRef.current = window.setTimeout(async () => {
       setSearching(true);
       try {
         const results = await rssService.searchPodcasts(query);
         setSearchResults(results);
       } catch (err) {
-        console.error(err);
+        logError('network', "Search failed", err, { query });
       } finally {
         setSearching(false);
       }
@@ -260,109 +205,71 @@ const App: React.FC = () => {
   };
 
   const loadNewEpisodes = async () => {
-    if (podcasts.length === 0) {
-      setView('new');
-      return;
+    const currentPodcasts = storageService.getPodcasts();
+    if (currentPodcasts.length === 0) { 
+      setNewEpisodes([]);
+      setView('new'); 
+      return; 
     }
-    setLoading(true);
+    setLoading(true); 
     setView('new');
     try {
-      const allRequests = podcasts.map(p => rssService.fetchPodcast(p.feedUrl).catch(() => null));
+      const allRequests = currentPodcasts.map(p => rssService.fetchPodcast(p.feedUrl).catch(e => {
+        logError('network', `Refresh failed for ${p.title}`, e, { url: p.feedUrl });
+        return null;
+      }));
       const results = await Promise.all(allRequests);
-      
       const aggregated: (Episode & { podcastTitle: string; podcastImage: string })[] = [];
       results.forEach((res, index) => {
         if (res) {
-          res.episodes.slice(0, 5).forEach(ep => {
-            aggregated.push({
-              ...ep,
-              podcastTitle: podcasts[index].title,
-              podcastImage: podcasts[index].image
+          res.episodes.slice(0, 10).forEach(ep => {
+            aggregated.push({ 
+              ...ep, 
+              podcastTitle: currentPodcasts[index].title, 
+              podcastImage: currentPodcasts[index].image 
             });
           });
         }
       });
-
-      aggregated.sort((a, b) => {
-        const dateA = new Date(a.pubDate).getTime();
-        const dateB = new Date(b.pubDate).getTime();
-        return dateB - dateA;
-      });
-
-      setNewEpisodes(aggregated);
+      // Sort by date - descending
+      aggregated.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+      setNewEpisodes(aggregated.slice(0, 50));
     } catch (err) {
-      setErrorMsg("Failed to sync new releases.");
+      logError('system', "Failed to aggregate updates", err);
     } finally {
       setLoading(false);
     }
   };
 
   const subscribePodcast = (podcast: Podcast) => {
-    const exists = podcasts.find(p => p.feedUrl === podcast.feedUrl);
-    if (!exists) {
-      const updatedPodcasts = [...podcasts, podcast];
-      setPodcasts(updatedPodcasts);
-      storageService.savePodcasts(updatedPodcasts);
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.8 },
-        colors: ['#8b5cf6', '#ec4899']
-      });
-    }
-  };
-
-  const handleAddPodcastByUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFeedUrl) return;
-    
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const { podcast } = await rssService.fetchPodcast(newFeedUrl);
-      subscribePodcast(podcast);
-      setNewFeedUrl('');
-      handleSelectPodcast(podcast);
-    } catch (error: any) {
-      setErrorMsg(error.message || "Could not load podcast.");
-      setTimeout(() => setErrorMsg(null), 6000);
-    } finally {
-      setLoading(false);
+    if (!podcasts.find(p => p.feedUrl === podcast.feedUrl)) {
+      const updated = [...podcasts, podcast];
+      setPodcasts(updated);
+      storageService.savePodcasts(updated);
+      confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
     }
   };
 
   const handleSelectPodcast = async (podcast: Podcast) => {
-    setLoading(true);
-    setErrorMsg(null);
-    setActivePodcast(podcast);
-    setView('podcast');
+    setActivePodcast(podcast); setView('podcast'); setLoading(true);
     try {
       const { episodes: podcastEpisodes, podcast: updatedDetails } = await rssService.fetchPodcast(podcast.feedUrl);
       setEpisodes(podcastEpisodes);
       setActivePodcast(prev => prev ? { ...prev, ...updatedDetails } : updatedDetails);
     } catch (err: any) {
-      setErrorMsg("Error loading feed contents.");
+      logError('parsing', `Failed to load ${podcast.title}`, err, { url: podcast.feedUrl });
     } finally {
       setLoading(false);
     }
   };
 
-  const removePodcast = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = podcasts.filter(p => p.id !== id);
-    setPodcasts(updated);
-    storageService.savePodcasts(updated);
+  const handlePlayEpisode = (episode: Episode) => {
+    setLoadingEpisodeId(episode.id);
+    setPlayerAutoplay(true);
+    setCurrentEpisode(episode);
   };
 
-  const getProgress = (episodeId: string) => {
-    const state = history[episodeId];
-    if (!state || !state.duration) return 0;
-    return (state.currentTime / state.duration) * 100;
-  };
-
-  const isSubscribed = (feedUrl: string) => {
-    return podcasts.some(p => p.feedUrl === feedUrl);
-  };
+  const isSubscribed = (feedUrl: string) => podcasts.some(p => p.feedUrl === feedUrl);
 
   const handlePlayFromHistory = async (item: PlaybackState) => {
     setLoading(true);
@@ -371,661 +278,379 @@ const App: React.FC = () => {
       if (feedUrl) {
         const { episodes: podcastEpisodes, podcast: p } = await rssService.fetchPodcast(feedUrl);
         const ep = podcastEpisodes.find(e => e.id === item.episodeId);
-        if (ep) {
-          setActivePodcast(p);
-          setPlayerAutoplay(true);
-          setCurrentEpisode(ep);
-          return;
-        }
+        if (ep) { setActivePodcast(p); handlePlayEpisode(ep); return; }
       } 
-      
       if (item.audioUrl && item.title) {
-        setActivePodcast({
-          id: item.podcastId,
-          title: item.podcastTitle || 'Legacy Show',
-          image: item.image || '',
-          feedUrl: '',
-          author: '',
-          description: ''
-        });
-        setPlayerAutoplay(true);
-        setCurrentEpisode({
-           id: item.episodeId,
-           podcastId: item.podcastId,
-           title: item.title,
-           image: item.image,
-           podcastTitle: item.podcastTitle,
-           description: item.description || '',
-           audioUrl: item.audioUrl,
-           duration: item.duration ? `${Math.floor(item.duration/60)}m` : '0:00',
-           pubDate: item.pubDate || '',
-           link: ''
-        });
-      } else {
-        setErrorMsg("Original source frequency has faded.");
+        setActivePodcast({ id: item.podcastId, title: item.podcastTitle || 'Archive Show', image: item.image || '', feedUrl: '', author: '', description: '' });
+        handlePlayEpisode({ id: item.episodeId, podcastId: item.podcastId, title: item.title, image: item.image, podcastTitle: item.podcastTitle, description: item.description || '', audioUrl: item.audioUrl, duration: item.duration ? `${Math.floor(item.duration/60)}m` : '0:00', pubDate: item.pubDate || '', link: '' });
       }
     } catch (e) {
-      setErrorMsg("Could not re-establish audio frequency.");
+      logError('network', "Failed to re-fetch archived episode", e, { item });
     } finally {
       setLoading(false);
     }
   };
 
-  const clearHistory = () => {
-    setHistory({});
-    storageService.saveHistory({});
-  };
-
   const generateShareData = (pUrl: string, epId?: string) => {
+    const pod = podcasts.find(p => p.feedUrl === pUrl) || activePodcast;
+    const ep = episodes.find(e => e.id === epId) || (currentEpisode?.id === epId ? currentEpisode : null);
+    
     const data: SharedData = { p: pUrl, e: epId };
-    if (epId) {
-      const ep = episodes.find(it => it.id === epId);
-      if (ep) {
-        data.t = ep.title;
-        data.u = ep.audioUrl;
-        data.i = ep.image;
-        data.d = shareService.sanitizeDescription(ep.description);
-        data.st = activePodcast?.title;
-        data.si = activePodcast?.image;
-        data.p = undefined; 
-      }
+    if (ep) {
+      data.t = ep.title; data.u = ep.audioUrl; data.i = ep.image;
+      data.d = shareService.sanitizeDescription(ep.description);
+      data.st = pod?.title; data.si = pod?.image;
     }
     setShareData(data);
   };
 
+  const playerPodcast = useMemo(() => {
+    if (!currentEpisode) return null;
+    return podcasts.find(p => p.id === currentEpisode.podcastId) || activePodcast || { id: currentEpisode.podcastId, title: currentEpisode.podcastTitle || 'Show', image: currentEpisode.podcastImage || '', feedUrl: '', author: '', description: '' };
+  }, [currentEpisode, podcasts, activePodcast]);
+
   return (
-    <div className="flex h-screen overflow-hidden text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-950 font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shrink-0">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8 text-zinc-900 dark:text-white group cursor-pointer" onClick={() => setView('home')}>
-            <div className="w-9 h-9 aura-logo rounded-xl flex items-center justify-center text-white animate-pulse-slow">
-              <i className="fa-solid fa-microphone-lines text-sm relative z-10"></i>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight leading-none">{APP_CONFIG.appName}</h1>
-              <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Standalone</span>
-            </div>
-          </div>
-          
-          <nav className="space-y-1">
-            <button 
-              onClick={() => setView('home')} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'home' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
-            >
-              <i className="fa-solid fa-compass text-sm"></i> Discover
-            </button>
-            <button 
-              onClick={loadNewEpisodes} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'new' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
-            >
-              <i className="fa-solid fa-bolt-lightning text-sm"></i> New Releases
-            </button>
-            <button 
-              onClick={() => { setView('queue'); }} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'queue' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
-            >
-              <i className="fa-solid fa-list-ul text-sm"></i> Play Queue
-              {queue.length > 0 && (
-                <span className="ml-auto text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full">{queue.length}</span>
-              )}
-            </button>
-            <button 
-              onClick={() => { setView('history'); syncHistory(); }} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'history' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
-            >
-              <i className="fa-solid fa-clock-rotate-left text-sm"></i> History
-            </button>
-          </nav>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Library</h2>
-            {podcasts.length > 0 && (
-              <button 
-                onClick={() => setShareData({ f: podcasts.map(p => p.feedUrl) })}
-                className="text-zinc-400 hover:text-indigo-500 transition"
-                title="Share Library"
-              >
-                <i className="fa-solid fa-share-nodes text-[10px]"></i>
-              </button>
-            )}
-          </div>
-          <div className="space-y-1">
-            {podcasts.map(p => (
-              <div 
-                key={p.id} 
-                onClick={() => handleSelectPodcast(p)}
-                className={`group flex items-center gap-3 cursor-pointer p-2 rounded-xl transition ${activePodcast?.feedUrl === p.feedUrl && view === 'podcast' ? 'bg-indigo-500/10 dark:bg-indigo-900/20' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
-              >
-                <img src={p.image} className="w-8 h-8 rounded-lg object-cover shadow-sm" alt="" />
-                <span className={`text-xs truncate flex-1 ${activePodcast?.feedUrl === p.feedUrl && view === 'podcast' ? 'text-indigo-600 dark:text-indigo-400 font-medium' : ''}`}>{p.title}</span>
-                <button 
-                  onClick={(e) => removePodcast(p.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 transition"
-                >
-                  <i className="fa-solid fa-trash-can text-[10px]"></i>
-                </button>
+    <div className="flex flex-col h-screen overflow-hidden text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-950 font-sans">
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-64 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shrink-0">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-8 text-zinc-900 dark:text-white group cursor-pointer" onClick={() => setView('home')}>
+              <div className="w-9 h-9 aura-logo rounded-xl flex items-center justify-center text-white animate-pulse-slow">
+                <i className="fa-solid fa-microphone-lines text-sm relative z-10"></i>
               </div>
-            ))}
-          </div>
-
-          {showInstallBanner && (
-            <div className="mt-8 p-4 bg-indigo-500/10 dark:bg-indigo-900/20 border border-indigo-500/20 rounded-2xl animate-fade-in relative overflow-hidden group">
-              <div className="absolute inset-0 aura-logo opacity-5 group-hover:opacity-10 transition"></div>
-              <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2 relative">Always Ready</p>
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-white leading-tight mb-3 relative">Use {APP_CONFIG.appName} as an App</h4>
-              <button 
-                onClick={installApp}
-                className="w-full py-2 bg-indigo-600 text-white text-[10px] font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition relative"
-              >
-                ADD TO YOUR APPS
-              </button>
-              <button 
-                onClick={() => setShowInstallBanner(false)}
-                className="absolute top-2 right-2 text-zinc-400 hover:text-zinc-600"
-              >
-                <i className="fa-solid fa-xmark text-[8px]"></i>
-              </button>
+              <div className="flex flex-col">
+                <h1 className="text-xl font-bold tracking-tight leading-none">{APP_CONFIG.appName}</h1>
+                <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">V{version.version}</span>
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
-           <div className="flex items-center justify-between p-1 bg-zinc-200 dark:bg-zinc-800 rounded-xl">
-              <button onClick={() => setTheme('light')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'light' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-sun text-xs"></i></button>
-              <button onClick={() => setTheme('dark')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'dark' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-moon text-xs"></i></button>
-              <button onClick={() => setTheme('system')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'system' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-desktop text-xs"></i></button>
-           </div>
-
-           <form onSubmit={handleAddPodcastByUrl} className="space-y-2">
-             <input 
-               type="text" 
-               placeholder="Add via RSS URL..." 
-               className="w-full bg-zinc-200 dark:bg-zinc-800 border-none rounded-xl py-2.5 px-3 text-xs text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-zinc-500"
-               value={newFeedUrl}
-               onChange={(e) => setNewFeedUrl(e.target.value)}
-             />
-             <button 
-               type="submit" 
-               disabled={loading}
-               className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-indigo-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
-             >
-               {loading ? <i className="fa-solid fa-spinner fa-spin"></i> : <><i className="fa-solid fa-plus"></i> Import Show</>}
-             </button>
-           </form>
-        </div>
-      </aside>
-
-      <main className="flex-1 flex flex-col bg-white dark:bg-zinc-950 overflow-hidden">
-        <header className="h-16 border-b border-zinc-100 dark:border-zinc-900 flex items-center px-8 justify-between shrink-0 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <h2 className="font-bold text-zinc-900 dark:text-white text-lg">
-              {view === 'home' ? 'Discover' : 
-               view === 'history' ? 'History' : 
-               view === 'new' ? 'New Releases' : 
-               view === 'queue' ? 'Play Queue' :
-               activePodcast?.title}
-            </h2>
+            <nav className="space-y-1">
+              <button onClick={() => setView('home')} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'home' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}><i className="fa-solid fa-compass text-sm"></i> Discover</button>
+              <button onClick={loadNewEpisodes} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'new' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}><i className="fa-solid fa-bolt-lightning text-sm"></i> New Releases</button>
+              <button onClick={() => { setView('archive'); syncHistory(); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'archive' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}><i className="fa-solid fa-box-archive text-sm"></i> Signal Archive {(queue.length > 0) && <span className="ml-auto text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full">{queue.length}</span>}</button>
+            </nav>
           </div>
-          <div className="flex items-center gap-4">
-             {errorMsg && (
-               <div className="bg-red-500/10 text-red-600 dark:text-red-500 text-[10px] font-bold px-3 py-1.5 rounded-full border border-red-500/20 animate-fade-in">
-                 <i className="fa-solid fa-circle-exclamation mr-1"></i> {errorMsg}
-               </div>
-             )}
-             <div className="w-8 h-8 rounded-full aura-logo shadow-lg shadow-indigo-500/20 opacity-80"></div>
+          <div className="flex-1 overflow-y-auto px-6 pb-6">
+            <div className="flex items-center justify-between mb-4"><h2 className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Library</h2></div>
+            <div className="space-y-1">
+              {podcasts.map(p => (
+                <div key={p.id} onClick={() => handleSelectPodcast(p)} className={`group flex items-center gap-3 cursor-pointer p-2 rounded-xl transition ${activePodcast?.feedUrl === p.feedUrl && view === 'podcast' ? 'bg-indigo-500/10 dark:bg-indigo-900/20' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}>
+                  <img src={p.image} className="w-8 h-8 rounded-lg object-cover shadow-sm" alt="" />
+                  <span className={`text-xs truncate flex-1 ${activePodcast?.feedUrl === p.feedUrl && view === 'podcast' ? 'text-indigo-600 dark:text-indigo-400 font-medium' : ''}`}>{p.title}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </header>
+          <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
+             <div className="flex items-center justify-between p-1 bg-zinc-200 dark:bg-zinc-800 rounded-xl">
+                <button onClick={() => setTheme('light')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'light' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-sun text-xs"></i></button>
+                <button onClick={() => setTheme('dark')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'dark' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-moon text-xs"></i></button>
+                <button onClick={() => setTheme('system')} className={`flex-1 flex items-center justify-center py-2 rounded-lg transition ${theme === 'system' ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500'}`}><i className="fa-solid fa-desktop text-xs"></i></button>
+             </div>
+             <div className="text-center"><span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">{version.codename} • {version.buildDate}</span></div>
+          </div>
+        </aside>
 
-        <div className="flex-1 overflow-y-auto p-8 pb-32">
-          {view === 'home' && (
-            <div className="max-w-6xl mx-auto">
-              <div className="mb-12">
-                <div className="relative max-w-2xl">
-                  <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400"></i>
-                  <input 
-                    type="text"
-                    placeholder="Search millions of podcasts..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-5 pl-14 pr-6 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-400 text-lg shadow-sm"
-                  />
-                  {searching && (
-                    <div className="absolute right-5 top-1/2 -translate-y-1/2">
-                      <i className="fa-solid fa-spinner fa-spin text-indigo-500"></i>
+        <main className="flex-1 flex flex-col bg-white dark:bg-zinc-950 overflow-hidden relative">
+          <header className="h-16 border-b border-zinc-100 dark:border-zinc-900 flex items-center px-8 justify-between shrink-0 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
+            <div className="flex items-center gap-4">
+              <h2 className="font-bold text-zinc-900 dark:text-white text-lg">
+                {view === 'home' ? 'Discover' : view === 'archive' ? 'Signal Archive' : view === 'new' ? 'New Releases' : activePodcast?.title}
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+               {errors.length > 0 && (
+                 <button onClick={() => setShowStatusPanel(true)} className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 hover:bg-amber-500/20 transition group">
+                   <i className="fa-solid fa-triangle-exclamation text-xs"></i>
+                   <span className="absolute right-12 hidden group-hover:block whitespace-nowrap bg-zinc-900 text-white text-[10px] py-1 px-3 rounded-md">System Alerts ({errors.length})</span>
+                 </button>
+               )}
+               <button onClick={() => { setView('home'); window.scrollTo({top: 0, behavior: 'smooth'}); }} className="w-8 h-8 rounded-full aura-logo shadow-lg opacity-80 hover:opacity-100 transition-opacity transform hover:scale-105" title={`${APP_CONFIG.appName} ${version.version}`}></button>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto p-8 pb-12">
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-32 animate-pulse">
+                <div className="w-12 h-12 border-2 border-indigo-500/30 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Harmonizing Signal...</p>
+              </div>
+            )}
+
+            {!loading && view === 'home' && (
+              <div className="max-w-6xl mx-auto">
+                <div className="mb-12">
+                  <div className="relative max-w-2xl">
+                    <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400"></i>
+                    <input type="text" placeholder="Explore millions of frequencies..." value={searchQuery} onChange={(e) => handleSearch(e.target.value)} className="w-full bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-5 pl-14 pr-6 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-400 text-lg shadow-sm" />
+                  </div>
+                  {searchResults.length > 0 && (
+                    <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                      {searchResults.map(result => (
+                        <div key={result.id} onClick={() => handleSelectPodcast(result)} className="group cursor-pointer flex flex-col">
+                          <div className="relative aspect-square mb-4 overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all"><img src={result.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt="" /></div>
+                          <h4 className="font-bold text-zinc-900 dark:text-white truncate text-sm">{result.title}</h4>
+                          <p className="text-[10px] text-zinc-500 truncate font-medium">{result.author}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-
-                {searchResults.length > 0 && (
-                  <div className="mt-12">
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-8">Search Results</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                      {searchResults.map(result => (
-                        <div 
-                          key={result.id}
-                          onClick={() => handleSelectPodcast(result)}
-                          className="group cursor-pointer flex flex-col"
-                        >
-                          <div className="relative aspect-square mb-4 overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all duration-300">
-                            <img src={result.image} className="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt="" />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4">
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); subscribePodcast(result); }}
-                                 className="bg-white text-zinc-950 text-[10px] font-bold px-4 py-2 rounded-full hover:bg-zinc-100 transition transform hover:scale-105"
-                               >
-                                 {isSubscribed(result.feedUrl) ? 'IN LIBRARY' : 'ADD TO LIBRARY'}
-                               </button>
-                            </div>
-                          </div>
-                          <h4 className="font-bold text-zinc-900 dark:text-white truncate text-sm mb-1">{result.title}</h4>
-                          <p className="text-[10px] text-zinc-500 truncate font-medium">{result.author}</p>
-                        </div>
+                {!searchQuery && (
+                  <div className="mt-8">
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-8">Trending Now</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {suggestedPodcasts.map(podcast => (
+                        <button key={podcast.id} onClick={() => handleSelectPodcast(podcast)} className="bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 transition flex items-center gap-4 group">
+                          <img src={podcast.image} className="w-16 h-16 rounded-xl object-cover shrink-0" alt="" />
+                          <div className="overflow-hidden flex-1 text-left"><p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{podcast.title}</p><p className="text-[10px] text-zinc-500 truncate font-medium">{podcast.author}</p></div>
+                          {isSubscribed(podcast.feedUrl) ? <i className="fa-solid fa-check text-green-500 ml-auto"></i> : <i onClick={(e) => { e.stopPropagation(); subscribePodcast(podcast); }} className="fa-solid fa-plus text-zinc-300 group-hover:text-indigo-600 transition ml-auto"></i>}
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
+            )}
 
-              {!searchQuery && (
-                <>
-                  <div className="mt-8">
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-8">Trending Worldwide</h3>
-                    {loadingSuggestions ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 animate-pulse">
-                        {[...Array(6)].map((_, i) => (
-                          <div key={i} className="h-24 bg-zinc-100 dark:bg-zinc-900/40 rounded-2xl"></div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {suggestedPodcasts.map(podcast => (
-                          <button 
-                            key={podcast.feedUrl || podcast.id}
-                            onClick={() => handleSelectPodcast(podcast)}
-                            className="bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 transition flex items-center gap-4 group shadow-sm text-left overflow-hidden"
-                          >
-                            <img src={podcast.image} className="w-16 h-16 rounded-xl object-cover shrink-0 shadow-sm" alt="" />
-                            <div className="overflow-hidden flex-1 min-w-0">
-                              <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{podcast.title}</p>
-                              <p className="text-[10px] text-zinc-500 truncate font-medium">{podcast.author}</p>
-                            </div>
-                            {isSubscribed(podcast.feedUrl) ? (
-                              <i className="fa-solid fa-check text-green-500 shrink-0 ml-auto"></i>
-                            ) : (
-                              <i 
-                                onClick={(e) => { e.stopPropagation(); subscribePodcast(podcast); }}
-                                className="fa-solid fa-plus text-zinc-300 group-hover:text-indigo-600 transition shrink-0 ml-auto p-2 hover:bg-indigo-50 dark:hover:bg-zinc-800 rounded-full"
-                              ></i>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {view === 'history' && (
-            <div className="max-w-5xl mx-auto">
-              <div className="flex items-center justify-between mb-10">
-                <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Waves of the Past</h3>
-                <button 
-                  onClick={clearHistory}
-                  className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest uppercase px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl"
-                >
-                  <i className="fa-solid fa-trash-can mr-2"></i> Clear History
-                </button>
-              </div>
-
-              {Object.keys(history).length === 0 ? (
-                <div className="text-center py-40 space-y-4">
-                  <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200 shadow-inner">
-                    <i className="fa-solid fa-clock-rotate-left text-3xl"></i>
-                  </div>
-                  <p className="text-zinc-500 italic font-medium">Your waves haven't broken yet. Start listening to see your history.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6">
-                  {(Object.values(history) as PlaybackState[]).sort((a,b) => b.lastUpdated - a.lastUpdated).map(item => (
-                    <EpisodeItem 
-                      key={item.episodeId}
-                      isActive={currentEpisode?.id === item.episodeId}
-                      episode={{
-                        id: item.episodeId,
-                        title: item.title || 'Untitled Wave',
-                        image: item.image,
-                        podcastTitle: item.podcastTitle,
-                        description: item.description,
-                        pubDate: item.pubDate,
-                        podcastId: item.podcastId,
-                        audioUrl: item.audioUrl,
-                        duration: item.duration ? `${Math.floor(item.duration/60)}m` : 'Shared'
-                      }}
-                      progress={(item.currentTime / (item.duration || 1)) * 100}
-                      onPlay={() => handlePlayFromHistory(item)}
-                      onQueue={() => {
-                        const ep = {
-                          id: item.episodeId,
-                          podcastId: item.podcastId,
-                          title: item.title || '',
-                          description: item.description || '',
-                          pubDate: item.pubDate || '',
-                          audioUrl: item.audioUrl || '',
-                          duration: item.duration ? `${Math.floor(item.duration/60)}m` : '0:00',
-                          link: '',
-                          image: item.image,
-                          podcastTitle: item.podcastTitle
-                        };
-                        addToQueue(ep);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {view === 'queue' && (
-            <div className="max-w-5xl mx-auto">
-              <div className="flex items-center justify-between mb-10">
-                <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Upcoming Frequencies</h3>
-                <button 
-                  onClick={clearQueue}
-                  className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest uppercase px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl"
-                >
-                  <i className="fa-solid fa-layer-group mr-2"></i> Clear Queue
-                </button>
-              </div>
-
-              {queue.length === 0 ? (
-                <div className="text-center py-40 space-y-4">
-                  <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200 shadow-inner">
-                    <i className="fa-solid fa-list-ul text-3xl"></i>
-                  </div>
-                  <p className="text-zinc-500 italic font-medium">The queue is silent. Add episodes to keep the waves rolling.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6">
-                  {queue.map((episode, idx) => (
-                    <EpisodeItem 
-                      key={episode.id + idx}
-                      isActive={currentEpisode?.id === episode.id}
-                      episode={episode}
-                      progress={getProgress(episode.id)}
-                      onPlay={() => { setPlayerAutoplay(true); setCurrentEpisode(episode); removeFromQueue(episode.id); }}
-                      onRemove={() => removeFromQueue(episode.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {view === 'new' && (
-            <div className="max-w-5xl mx-auto">
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Fresh Frequencies</h3>
-                <button 
-                  onClick={loadNewEpisodes} 
-                  disabled={loading}
-                  className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-900 rounded-full text-[10px] font-bold text-zinc-600 dark:text-zinc-400 flex items-center gap-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition uppercase tracking-widest"
-                >
-                  <i className={`fa-solid fa-arrows-rotate ${loading ? 'fa-spin' : ''}`}></i> Sync
-                </button>
-              </div>
-
-              {loading && newEpisodes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-40 gap-8">
-                  <div className="w-20 h-20 aura-logo rounded-2xl animate-spin shadow-2xl flex items-center justify-center">
-                    <i className="fa-solid fa-podcast text-white text-3xl"></i>
-                  </div>
-                  <p className="font-bold text-zinc-400 animate-pulse tracking-wide uppercase text-xs">Syncing Your Waves...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6">
-                  {newEpisodes.map(episode => (
-                    <EpisodeItem 
-                      key={episode.id}
-                      isActive={currentEpisode?.id === episode.id}
-                      episode={episode}
-                      progress={getProgress(episode.id)}
-                      onPlay={() => { setPlayerAutoplay(true); setCurrentEpisode(episode); }}
-                      onQueue={() => addToQueue(episode)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {view === 'podcast' && activePodcast && (
-            <div className="max-w-5xl mx-auto">
-              <button 
-                onClick={() => setView('home')}
-                className="mb-10 text-xs font-bold text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center gap-3"
-              >
-                <i className="fa-solid fa-arrow-left"></i> Back to Explore
-              </button>
-
-              <div className="flex flex-col md:flex-row gap-10 mb-20 items-start">
-                <img src={activePodcast.image} className="w-56 h-56 md:w-72 md:h-72 rounded-[2.5rem] shadow-2xl object-cover shrink-0" alt="" />
-                <div className="space-y-6 flex-1 pt-2 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest shrink-0">Aura Verified</span>
-                    <div className="flex items-center gap-3">
-                      {!isSubscribed(activePodcast.feedUrl) ? (
-                        <button 
-                          onClick={() => subscribePodcast(activePodcast)}
-                          className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-bold shadow-xl hover:bg-indigo-700 transition transform hover:scale-105"
-                        >
-                          <i className="fa-solid fa-plus mr-2"></i> SUBSCRIBE
-                        </button>
-                      ) : (
-                        <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-8 py-3 rounded-2xl text-xs font-bold border border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
-                          <i className="fa-solid fa-check"></i> LIBRARY
-                        </span>
-                      )}
-                      <button 
-                        onClick={() => generateShareData(activePodcast.feedUrl)}
-                        className="w-12 h-12 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-2xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-zinc-500 dark:text-zinc-400 hover:text-indigo-600 transition"
-                      >
-                        <i className="fa-solid fa-share-nodes"></i>
-                      </button>
+            {!loading && view === 'podcast' && activePodcast && (
+              <div className="max-w-5xl mx-auto">
+                <button onClick={() => setView('home')} className="mb-10 text-xs font-bold text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center gap-3"><i className="fa-solid fa-arrow-left"></i> Back</button>
+                <div className="flex flex-col md:flex-row gap-10 mb-20 items-start">
+                  <img src={activePodcast.image} className="w-56 h-56 md:w-72 md:h-72 rounded-[2.5rem] shadow-2xl object-cover shrink-0" alt="" />
+                  <div className="space-y-6 flex-1 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Broadcast Verified</span>
+                      <button onClick={() => generateShareData(activePodcast.feedUrl)} className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-xl text-zinc-500 hover:text-indigo-600 transition"><i className="fa-solid fa-share-nodes"></i></button>
                     </div>
+                    <h3 className="text-5xl font-extrabold text-zinc-900 dark:text-white leading-tight tracking-tight">{activePodcast.title}</h3>
+                    <p className="text-xl text-indigo-600 font-bold">{activePodcast.author}</p>
+                    <p className="text-zinc-500 text-sm max-w-3xl leading-relaxed prose dark:prose-invert" dangerouslySetInnerHTML={{ __html: activePodcast.description }}></p>
+                    {!isSubscribed(activePodcast.feedUrl) && <button onClick={() => subscribePodcast(activePodcast)} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-bold shadow-xl hover:bg-indigo-700 transition">SUBSCRIBE</button>}
                   </div>
-                  <h3 className="text-5xl font-extrabold text-zinc-900 dark:text-white leading-tight tracking-tight break-words">{activePodcast.title}</h3>
-                  <p className="text-xl text-indigo-600 dark:text-indigo-400 font-bold truncate">{activePodcast.author}</p>
-                  <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-3xl leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: activePodcast.description }}></p>
+                </div>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between pb-8 border-b border-zinc-100 dark:border-zinc-900"><h4 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Recent Waves</h4></div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {episodes.map(episode => (
+                      <EpisodeItem 
+                        key={episode.id} 
+                        isActive={currentEpisode?.id === episode.id} 
+                        isLoading={loadingEpisodeId === episode.id}
+                        episode={episode} 
+                        progress={0} 
+                        onPlay={() => handlePlayEpisode(episode)} 
+                        onQueue={() => addToQueue(episode)} 
+                        onShare={() => generateShareData(activePodcast.feedUrl, episode.id)} 
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="space-y-8">
-                <div className="flex items-center justify-between pb-8 border-b border-zinc-100 dark:border-zinc-900">
-                  <h4 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Episodes</h4>
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{episodes.length} AVAILABLE</span>
+            {!loading && view === 'new' && (
+              <div className="max-w-5xl mx-auto space-y-12 animate-fade-in">
+                <div className="flex items-center justify-between">
+                   <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Fresh Releases</h3>
+                   <button onClick={loadNewEpisodes} className="text-xs font-bold text-indigo-500 hover:text-indigo-600 flex items-center gap-2"><i className="fa-solid fa-arrows-rotate"></i> Refresh</button>
                 </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  {episodes.map(episode => (
-                    <EpisodeItem 
-                      key={episode.id}
-                      isActive={currentEpisode?.id === episode.id}
-                      episode={episode}
-                      progress={getProgress(episode.id)}
-                      onPlay={() => { setPlayerAutoplay(true); setCurrentEpisode(episode); }}
-                      onQueue={() => addToQueue(episode)}
-                      onShare={() => generateShareData(activePodcast.feedUrl, episode.id)}
-                    />
-                  ))}
-                </div>
+                {newEpisodes.length === 0 ? (
+                  <div className="bg-zinc-50 dark:bg-zinc-900/40 rounded-[2.5rem] p-16 text-center border border-zinc-200 dark:border-zinc-800 border-dashed">
+                    <i className="fa-solid fa-wind text-4xl text-zinc-300 mb-6 block"></i>
+                    <p className="text-zinc-500 font-medium italic">No new transmissions detected from your library.</p>
+                    <button onClick={() => setView('home')} className="mt-8 text-indigo-600 font-bold text-sm">Discover New Frequencies</button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {newEpisodes.map(ep => (
+                      <EpisodeItem 
+                        key={ep.id} 
+                        isActive={currentEpisode?.id === ep.id} 
+                        episode={ep} 
+                        progress={0} 
+                        onPlay={() => handlePlayEpisode(ep)} 
+                        onQueue={() => addToQueue(ep)} 
+                        onShare={() => generateShareData(podcasts.find(p => p.id === ep.podcastId)?.feedUrl || '', ep.id)} 
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-      </main>
+            )}
 
-      {currentEpisode && (
+            {!loading && view === 'archive' && (
+              <div className="max-w-5xl mx-auto space-y-16 animate-fade-in">
+                <section>
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Incoming Waves <span className="text-indigo-500 text-lg ml-2">{queue.length}</span></h3>
+                    {queue.length > 0 && <button onClick={() => { setQueue([]); storageService.saveQueue([]); }} className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400">Clear Queue</button>}
+                  </div>
+                  {queue.length === 0 ? (
+                    <div className="bg-zinc-50 dark:bg-zinc-900/40 rounded-[2.5rem] p-12 text-center border border-zinc-200 dark:border-zinc-800 border-dashed">
+                      <p className="text-zinc-500 font-medium italic">Your transmission queue is empty.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {queue.map(item => (
+                        <EpisodeItem 
+                          key={item.id} 
+                          isActive={currentEpisode?.id === item.id} 
+                          episode={item} 
+                          progress={0} 
+                          onPlay={() => { removeFromQueue(item.id); handlePlayEpisode(item); }} 
+                          onRemove={() => removeFromQueue(item.id)} 
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Wave Archive</h3>
+                    {Object.keys(history).length > 0 && <button onClick={() => { setHistory({}); storageService.saveHistory({}); }} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Clear History</button>}
+                  </div>
+                  <div className="grid grid-cols-1 gap-4">
+                    {Object.values(history).sort((a,b) => b.lastUpdated - a.lastUpdated).map(item => (
+                      <EpisodeItem 
+                        key={item.episodeId} 
+                        isActive={currentEpisode?.id === item.episodeId} 
+                        isLoading={loadingEpisodeId === item.episodeId} 
+                        episode={{ id: item.episodeId, title: item.title || 'Wave', image: item.image, podcastTitle: item.podcastTitle, description: item.description, pubDate: item.pubDate, podcastId: item.podcastId, audioUrl: item.audioUrl, duration: item.duration ? `${Math.floor(item.duration/60)}m` : 'Archive' }} 
+                        progress={(item.currentTime / (item.duration || 1)) * 100} 
+                        onPlay={() => handlePlayFromHistory(item)} 
+                      />
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {currentEpisode && playerPodcast && (
         <Player 
           episode={currentEpisode} 
-          podcast={activePodcast || { id: currentEpisode.podcastId, title: currentEpisode.podcastTitle || 'Unknown Show', image: currentEpisode.podcastImage || '', feedUrl: '', author: '', description: '' }} 
-          queue={queue}
-          autoPlay={playerAutoplay}
-          onNext={playNext}
-          onRemoveFromQueue={removeFromQueue}
-          onClearQueue={clearQueue}
-          onClose={() => setCurrentEpisode(null)}
-          onShare={() => generateShareData(activePodcast?.feedUrl || '', currentEpisode.id)}
-          onProgress={syncHistory}
+          podcast={playerPodcast} 
+          queue={queue} 
+          autoPlay={playerAutoplay} 
+          onNext={playNext} 
+          onRemoveFromQueue={removeFromQueue} 
+          onClearQueue={() => { setQueue([]); storageService.saveQueue([]); }} 
+          onClose={() => { setCurrentEpisode(null); setLoadingEpisodeId(null); }} 
+          onShare={() => generateShareData(activePodcast?.feedUrl || '', currentEpisode.id)} 
+          onProgress={syncHistory} 
+          onReady={() => setLoadingEpisodeId(null)} 
         />
       )}
 
-      {loading && !activePodcast && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-zinc-950/80 backdrop-blur-xl">
-          <div className="flex flex-col items-center gap-8">
-            <div className="w-24 h-24 aura-logo rounded-[2.5rem] flex items-center justify-center animate-spin shadow-2xl">
-              <i className="fa-solid fa-wand-magic-sparkles text-white text-4xl"></i>
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="text-2xl font-bold text-white tracking-tight">Tuning Frequency...</h3>
-              <p className="text-zinc-400 text-xs font-medium uppercase tracking-[0.2em]">Synthesizing Wave Metadata</p>
-            </div>
-          </div>
-        </div>
+      {showStatusPanel && (
+        <SystemStatusPanel errors={errors} onClose={() => setShowStatusPanel(false)} onClear={() => setErrors([])} />
       )}
 
-      {shareData && (
-        <ShareModal 
-          data={shareData} 
-          onClose={() => setShareData(null)} 
-        />
-      )}
+      {shareData && <ShareModal data={shareData} onClose={() => setShareData(null)} />}
     </div>
   );
 };
 
-interface ShareModalProps {
-  data: SharedData;
-  onClose: () => void;
-}
+// Sub-component for System Diagnostics
+const SystemStatusPanel: React.FC<{ errors: AppError[], onClose: () => void, onClear: () => void }> = ({ errors, onClose, onClear }) => {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
-  const { url, length, isTooLong, payloadLength } = shareService.generateUrl(data);
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const getSummaryTitle = () => {
-    if (data.t) return "Universal Track Broadcast";
-    if (data.p) return "Podcast Series Broadcast";
-    if (data.f) return "Library Collection Broadcast";
-    return "Aura Wave Broadcast";
+  const copyTrace = (index: number, error: AppError) => {
+    const payload = {
+      message: error.message,
+      technicalTrace: error.details,
+      category: error.category,
+      context: error.context,
+      timestamp: new Date(error.timestamp).toISOString()
+    };
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   return (
+    <div className="fixed inset-0 z-[200] bg-zinc-950/60 backdrop-blur-xl flex items-center justify-center p-6" onClick={onClose}>
+      <div className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-[3rem] p-10 shadow-3xl animate-fade-in flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center"><i className="fa-solid fa-microchip text-xl"></i></div>
+            <h3 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase">Diagnostics</h3>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition"><i className="fa-solid fa-xmark"></i></button>
+        </div>
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+          {errors.length === 0 ? (
+            <div className="text-center py-20 text-zinc-400 font-medium italic">No signal interruptions detected.</div>
+          ) : errors.map((err, i) => (
+            <div key={i} className="p-6 bg-zinc-50 dark:bg-zinc-800/40 rounded-[2rem] border border-zinc-200 dark:border-zinc-800/60">
+              <div className="flex items-center justify-between mb-2">
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${err.category === 'playback' ? 'bg-red-500/10 text-red-600' : 'bg-blue-500/10 text-blue-600'}`}>{err.category}</span>
+                <span className="text-[9px] text-zinc-400">{new Date(err.timestamp).toLocaleTimeString()}</span>
+              </div>
+              <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-4">{err.message}</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Technical Trace</p>
+                   <button 
+                    onClick={() => copyTrace(i, err)} 
+                    className={`text-[9px] font-bold transition flex items-center gap-1.5 ${copiedIndex === i ? 'text-green-500' : 'text-indigo-500 hover:text-indigo-400'}`}
+                   >
+                     <i className={`fa-solid ${copiedIndex === i ? 'fa-check' : 'fa-copy'}`}></i>
+                     {copiedIndex === i ? 'Copied to buffer!' : 'Copy for Developer'}
+                   </button>
+                </div>
+                <div className="p-4 bg-black/5 dark:bg-black/40 rounded-xl text-[10px] font-mono text-zinc-500 dark:text-zinc-400 overflow-x-auto whitespace-pre leading-relaxed border border-zinc-200 dark:border-zinc-800/50">
+                  {err.details || err.message}
+                  {err.context?.diagnostics?.attempts && `\n\nAttempts:\n- ${err.context.diagnostics.attempts.join('\n- ')}`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <button onClick={() => { onClear(); onClose(); }} className="mt-8 py-4 bg-zinc-100 dark:bg-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Clear Activity Log</button>
+      </div>
+    </div>
+  );
+};
+
+interface ShareModalProps { data: SharedData; onClose: () => void; }
+const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
+  const { url, length, isTooLong, payloadLength } = shareService.generateUrl(data);
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-zinc-950/40 backdrop-blur-xl" onClick={onClose}>
-      <div 
-        className="bg-white dark:bg-zinc-950 w-full max-w-2xl rounded-[3rem] p-12 shadow-2xl border border-zinc-100 dark:border-zinc-800 animate-fade-in flex flex-col max-h-[90vh]" 
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="bg-white dark:bg-zinc-950 w-full max-w-2xl rounded-[3rem] p-12 shadow-2xl animate-fade-in flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-8 shrink-0">
           <div className="flex items-center gap-5">
-            <div className="w-12 h-12 aura-logo rounded-2xl flex items-center justify-center text-white">
-              <i className="fa-solid fa-share-nodes text-lg"></i>
-            </div>
-            <div>
-              <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">{getSummaryTitle()}</h3>
-              <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-1">Immutable Payload Structure</p>
-            </div>
+            <div className="w-12 h-12 aura-logo rounded-2xl flex items-center justify-center text-white"><i className="fa-solid fa-share-nodes text-lg"></i></div>
+            <div><h3 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Universal Wave Broadcast</h3><p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-1">Immutable Payload Structure</p></div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 transition">
-            <i className="fa-solid fa-xmark text-xl"></i>
-          </button>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-white transition"><i className="fa-solid fa-xmark"></i></button>
         </div>
-
-        <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto space-y-8 pr-2">
           <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6">
-            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-4">Wave Payload Content</h4>
-            <div className="space-y-4">
-              {data.t && (
-                <div className="flex items-start gap-4">
-                  <img src={data.i} className="w-16 h-16 rounded-xl object-cover shrink-0 shadow-sm border border-zinc-100 dark:border-zinc-800" alt="" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-extrabold text-zinc-900 dark:text-white mb-1 leading-tight">{data.t}</p>
-                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-tight">{data.st || 'Standalone Broadcast'}</p>
-                    {data.d && <p className="text-[10px] text-zinc-500 mt-2 line-clamp-2 leading-relaxed italic">{data.d}</p>}
-                  </div>
-                </div>
-              )}
-              
-              {!data.t && data.p && (
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                    <i className="fa-solid fa-rss text-lg"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">RSS FEED LINK</p>
-                    <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400 truncate">{data.p}</p>
-                  </div>
-                </div>
-              )}
-
-              {data.f && data.f.length > 0 && (
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-pink-500/10 rounded-xl flex items-center justify-center text-pink-600 dark:text-pink-400">
-                    <i className="fa-solid fa-layer-group text-lg"></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mb-1">DISCOVERY COLLECTION</p>
-                    <p className="text-xs font-bold text-zinc-900 dark:text-white">{data.f.length} Feeds Encoded</p>
-                  </div>
-                </div>
-              )}
-            </div>
+            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-4">Wave Contents</h4>
+            {data.t && <div className="flex items-start gap-4"><img src={data.i} className="w-16 h-16 rounded-xl object-cover" alt="" /><div className="flex-1 min-w-0"><p className="text-sm font-extrabold text-zinc-900 dark:text-white mb-1 truncate">{data.t}</p><p className="text-[10px] text-indigo-500 font-bold">{data.st || 'Standalone Broadcast'}</p></div></div>}
           </div>
-
           <div className="space-y-4">
-            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Universal Access Link</h4>
-            <div className="flex flex-col gap-3">
-              <div className="bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/50 rounded-2xl py-4 px-6 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 break-all leading-relaxed max-h-40 overflow-y-auto">
-                {url}
-              </div>
-              <button 
-                onClick={handleCopy}
-                className={`w-full py-4 rounded-2xl font-bold text-xs transition flex items-center justify-center gap-3 ${copied ? 'bg-green-500 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-500/20'}`}
-              >
-                {copied ? <><i className="fa-solid fa-check"></i> Copied Payload</> : <><i className="fa-solid fa-copy"></i> Copy Broadcast URL</>}
-              </button>
-            </div>
+            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Access Frequency</h4>
+            <div className="bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/50 rounded-2xl py-4 px-6 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 break-all leading-relaxed max-h-40 overflow-y-auto">{url}</div>
+            <button onClick={handleCopy} className={`w-full py-4 rounded-2xl font-bold text-xs transition flex items-center justify-center gap-3 ${copied ? 'bg-green-500 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl'}`}>
+              {copied ? <><i className="fa-solid fa-check"></i> Link Copied</> : <><i className="fa-solid fa-copy"></i> Generate Broadcast URL</>}
+            </button>
           </div>
-
-          <div className="flex flex-col gap-3 px-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                <i className="fa-solid fa-box-open"></i> Payload Size: {payloadLength} bytes
-              </div>
-              <div className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${isTooLong ? 'text-orange-500' : 'text-zinc-400'}`}>
-                <i className={`fa-solid ${isTooLong ? 'fa-triangle-exclamation' : 'fa-link'}`}></i>
-                Total Wave: {length} bytes
-              </div>
-            </div>
-            {isTooLong && (
-              <span className="text-[10px] text-orange-500 font-bold text-center">CRITICAL: Link may be too heavy for some platforms.</span>
-            )}
+          <div className="flex items-center justify-between text-[10px] font-bold uppercase text-zinc-400 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+            <span>Payload: {payloadLength} bytes</span>
+            <span className={isTooLong ? 'text-orange-500' : ''}>Wave: {length} bytes</span>
           </div>
         </div>
-
-        <div className="mt-8 shrink-0 bg-indigo-500/5 dark:bg-indigo-900/10 rounded-2xl p-4 flex gap-4 items-center border border-indigo-500/10">
+        <div className="mt-8 bg-indigo-500/5 dark:bg-indigo-900/10 rounded-2xl p-4 flex gap-4 items-center">
           <i className="fa-solid fa-bolt-lightning text-indigo-500 text-lg"></i>
-          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-snug font-medium">This wave uses <b>Deflate compression</b> to embed full track metadata. The receiver synthesizes the audio environment instantly with zero handshake required.</p>
+          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-snug">This wave uses <b>Deflate compression</b> to embed full track metadata instantly with zero handshake required.</p>
         </div>
       </div>
     </div>

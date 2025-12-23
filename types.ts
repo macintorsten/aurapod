@@ -1,6 +1,16 @@
 
 export type Theme = 'dark' | 'light' | 'system';
 
+export type ErrorCategory = 'network' | 'parsing' | 'playback' | 'system';
+
+export interface AppError {
+  category: ErrorCategory;
+  message: string;
+  details?: string;
+  timestamp: number;
+  context?: any;
+}
+
 export interface Podcast {
   id: string;
   title: string;
