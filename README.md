@@ -1,5 +1,8 @@
 # AuraPod
 
+[![Test](https://github.com/macintorsten/aurapod/actions/workflows/test.yml/badge.svg)](https://github.com/macintorsten/aurapod/actions/workflows/test.yml)
+[![Deploy](https://github.com/macintorsten/aurapod/actions/workflows/deploy.yml/badge.svg)](https://github.com/macintorsten/aurapod/actions/workflows/deploy.yml)
+
 ![AuraPod Screenshot](auropod_screenshot.png)
 
 A client-side podcast player web application built to run entirely in your browser.
@@ -23,3 +26,23 @@ This project is in active development and is expected to have bugs, particularly
    ```bash
    npm run dev
    ```
+
+## Testing
+
+1. Unit tests (Vitest):
+   ```bash
+   npm run test:unit
+   ```
+2. Watch mode:
+   ```bash
+   npm run test:watch
+   ```
+3. End-to-end tests (Playwright):
+   ```bash
+   npm run test:e2e
+   ```
+
+If E2E fails locally due to missing browsers, run:
+```bash
+npx playwright install chromium
+```

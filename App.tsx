@@ -7,6 +7,8 @@ import { shareService, SharedData } from './services/shareService';
 import { APP_CONFIG } from './config';
 import Player from './components/Player';
 import EpisodeItem from './components/EpisodeItem';
+import { useQueue } from './hooks/useQueue';
+import { usePodcastSearch } from './hooks/usePodcastSearch';
 import confetti from 'canvas-confetti';
 
 interface VersionInfo {
@@ -23,22 +25,16 @@ const App: React.FC = () => {
   const [newEpisodes, setNewEpisodes] = useState<(Episode & { podcastTitle: string; podcastImage: string })[]>([]);
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const [playerAutoplay, setPlayerAutoplay] = useState(true);
-  const [queue, setQueue] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingEpisodeId, setLoadingEpisodeId] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
   const [errors, setErrors] = useState<AppError[]>([]);
   const [showStatusPanel, setShowStatusPanel] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Podcast[]>([]);
   const [suggestedPodcasts, setSuggestedPodcasts] = useState<Podcast[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [view, setView] = useState<'home' | 'podcast' | 'archive' | 'new'>('home');
   const [theme, setTheme] = useState<Theme>(storageService.getTheme() || APP_CONFIG.defaultTheme);
   const [version, setVersion] = useState<VersionInfo>({ version: '0.0.1', codename: 'Aurora', buildDate: '2023-11-20' });
   const [shareData, setShareData] = useState<SharedData | null>(null);
-
-  const searchTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetch('./version.json')
@@ -59,6 +55,12 @@ const App: React.FC = () => {
     setErrors(prev => [errorObj, ...prev].slice(0, 20));
     console.error(`[AuraPod:${category}]`, message, errorObj);
   }, []);
+
+  // Custom hooks
+  const { queue, addToQueue, removeFromQueue, clearQueue, playNext } = useQueue();
+  const { searchQuery, searchResults, searching, search: handleSearch } = usePodcastSearch(
+    (err, query) => logError('network', "Search failed", err, { query })
+  );
 
   const handleImportDirect = useCallback(async (data: SharedData) => {
     setLoading(true);
@@ -120,7 +122,6 @@ const App: React.FC = () => {
   useEffect(() => {
     setPodcasts(storageService.getPodcasts());
     setHistory(storageService.getHistory());
-    setQueue(storageService.getQueue());
     const fetchTrending = async () => {
       setLoadingSuggestions(true);
       try {
@@ -156,52 +157,18 @@ const App: React.FC = () => {
     storageService.saveTheme(theme);
   }, [theme]);
 
-  const addToQueue = (episode: Episode) => {
-    if (queue.find(e => e.id === episode.id)) return;
-    const updated = [...queue, episode];
-    setQueue(updated);
-    storageService.saveQueue(updated);
-    confetti({ particleCount: 15, spread: 30, origin: { y: 0.9 } });
-  };
-
-  const removeFromQueue = (episodeId: string) => {
-    const updated = queue.filter(e => e.id !== episodeId);
-    setQueue(updated);
-    storageService.saveQueue(updated);
-  };
-
-  const playNext = () => {
-    let tempQueue = [...queue];
-    if (tempQueue.length > 0) {
-      const nextEpisode = tempQueue.shift()!;
+  const handlePlayNext = () => {
+    const nextEpisode = playNext();
+    if (nextEpisode) {
       const pod = podcasts.find(p => p.id === nextEpisode.podcastId);
       if (pod) {
         setActivePodcast(pod);
         setPlayerAutoplay(true);
         setCurrentEpisode(nextEpisode);
-        setQueue(tempQueue);
-        storageService.saveQueue(tempQueue);
       }
     } else {
       setCurrentEpisode(null);
     }
-  };
-
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current);
-    if (!query.trim()) { setSearchResults([]); return; }
-    searchTimeoutRef.current = window.setTimeout(async () => {
-      setSearching(true);
-      try {
-        const results = await rssService.searchPodcasts(query);
-        setSearchResults(results);
-      } catch (err) {
-        logError('network', "Search failed", err, { query });
-      } finally {
-        setSearching(false);
-      }
-    }, 500);
   };
 
   const loadNewEpisodes = async () => {
@@ -483,7 +450,7 @@ const App: React.FC = () => {
                 <section>
                   <div className="flex items-center justify-between mb-8">
                     <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Incoming Waves <span className="text-indigo-500 text-lg ml-2">{queue.length}</span></h3>
-                    {queue.length > 0 && <button onClick={() => { setQueue([]); storageService.saveQueue([]); }} className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400">Clear Queue</button>}
+                    {queue.length > 0 && <button onClick={clearQueue} className="text-[10px] font-bold uppercase tracking-widest text-red-500 hover:text-red-400">Clear Queue</button>}
                   </div>
                   {queue.length === 0 ? (
                     <div className="bg-zinc-50 dark:bg-zinc-900/40 rounded-[2.5rem] p-12 text-center border border-zinc-200 dark:border-zinc-800 border-dashed">
@@ -535,9 +502,9 @@ const App: React.FC = () => {
           podcast={playerPodcast} 
           queue={queue} 
           autoPlay={playerAutoplay} 
-          onNext={playNext} 
+          onNext={handlePlayNext} 
           onRemoveFromQueue={removeFromQueue} 
-          onClearQueue={() => { setQueue([]); storageService.saveQueue([]); }} 
+          onClearQueue={clearQueue} 
           onClose={() => { setCurrentEpisode(null); setLoadingEpisodeId(null); }} 
           onShare={() => generateShareData(activePodcast?.feedUrl || '', currentEpisode.id)} 
           onProgress={syncHistory} 

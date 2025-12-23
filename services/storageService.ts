@@ -1,6 +1,26 @@
 
 import { Podcast, PlaybackState, Theme, Episode } from '../types';
 
+export interface StorageAdapter {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+class LocalStorageAdapter implements StorageAdapter {
+  getItem(key: string): string | null {
+    return localStorage.getItem(key);
+  }
+  
+  setItem(key: string, value: string): void {
+    localStorage.setItem(key, value);
+  }
+  
+  removeItem(key: string): void {
+    localStorage.removeItem(key);
+  }
+}
+
 const STORAGE_KEYS = {
   PODCASTS: 'aurapod_podcasts',
   HISTORY: 'aurapod_history',
@@ -8,44 +28,46 @@ const STORAGE_KEYS = {
   QUEUE: 'aurapod_queue',
 };
 
-export const storageService = {
-  getPodcasts: (): Podcast[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.PODCASTS);
+export class StorageService {
+  constructor(private storage: StorageAdapter = new LocalStorageAdapter()) {}
+
+  getPodcasts(): Podcast[] {
+    const data = this.storage.getItem(STORAGE_KEYS.PODCASTS);
     return data ? JSON.parse(data) : [];
-  },
+  }
 
-  savePodcasts: (podcasts: Podcast[]) => {
-    localStorage.setItem(STORAGE_KEYS.PODCASTS, JSON.stringify(podcasts));
-  },
+  savePodcasts(podcasts: Podcast[]): void {
+    this.storage.setItem(STORAGE_KEYS.PODCASTS, JSON.stringify(podcasts));
+  }
 
-  getHistory: (): Record<string, PlaybackState> => {
-    const data = localStorage.getItem(STORAGE_KEYS.HISTORY);
+  getHistory(): Record<string, PlaybackState> {
+    const data = this.storage.getItem(STORAGE_KEYS.HISTORY);
     return data ? JSON.parse(data) : {};
-  },
+  }
 
-  saveHistory: (history: Record<string, PlaybackState>) => {
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
-  },
+  saveHistory(history: Record<string, PlaybackState>): void {
+    this.storage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+  }
 
-  getTheme: (): Theme => {
-    return (localStorage.getItem(STORAGE_KEYS.THEME) as Theme) || 'dark';
-  },
+  getTheme(): Theme {
+    return (this.storage.getItem(STORAGE_KEYS.THEME) as Theme) || 'dark';
+  }
 
-  saveTheme: (theme: Theme) => {
-    localStorage.setItem(STORAGE_KEYS.THEME, theme);
-  },
+  saveTheme(theme: Theme): void {
+    this.storage.setItem(STORAGE_KEYS.THEME, theme);
+  }
 
-  getQueue: (): Episode[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.QUEUE);
+  getQueue(): Episode[] {
+    const data = this.storage.getItem(STORAGE_KEYS.QUEUE);
     return data ? JSON.parse(data) : [];
-  },
+  }
 
-  saveQueue: (queue: Episode[]) => {
-    localStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(queue));
-  },
+  saveQueue(queue: Episode[]): void {
+    this.storage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(queue));
+  }
 
-  updatePlayback: (episode: Episode, podcast: Podcast | { title: string }, currentTime: number, duration: number) => {
-    const history = storageService.getHistory();
+  updatePlayback(episode: Episode, podcast: Podcast | { title: string }, currentTime: number, duration: number): void {
+    const history = this.getHistory();
     const isCompleted = duration > 0 && (currentTime / duration) > 0.95;
     
     history[episode.id] = {
@@ -64,6 +86,12 @@ export const storageService = {
       audioUrl: episode.audioUrl // Added for fallback playback support
     };
     
-    storageService.saveHistory(history);
+    this.saveHistory(history);
   }
-};
+}
+
+// Export singleton instance for backward compatibility
+export const storageService = new StorageService();
+
+// Export factory for testing
+export const createStorageService = (adapter: StorageAdapter) => new StorageService(adapter);
