@@ -1,7 +1,7 @@
-import React from 'react';
-import { Podcast } from '../../types';
-import { APP_CONFIG } from '../../config';
-import { View } from '../../constants';
+import React from "react";
+import { Podcast } from "../../types";
+import { APP_CONFIG } from "../../config";
+import { View } from "../../constants";
 
 interface HeaderProps {
   view: View;
@@ -22,16 +22,16 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const getTitle = () => {
     switch (view) {
-      case 'home':
-        return 'Discover';
-      case 'archive':
-        return 'Signal Archive';
-      case 'new':
-        return 'New Releases';
-      case 'podcast':
-        return activePodcast?.title || 'Podcast';
+      case "home":
+        return "Discover";
+      case "archive":
+        return "Signal Archive";
+      case "new":
+        return "New Releases";
+      case "podcast":
+        return activePodcast?.title || "Podcast";
       default:
-        return 'AuraPod';
+        return "AuraPod";
     }
   };
 
@@ -44,8 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
       <div className="flex items-center gap-3">
         {errorCount > 0 && (
-          <button 
-            onClick={onShowStatusPanel} 
+          <button
+            onClick={onShowStatusPanel}
             className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 hover:bg-amber-500/20 transition group"
           >
             <i className="fa-solid fa-triangle-exclamation text-xs"></i>
@@ -54,12 +54,11 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
         )}
-        <button 
-          onClick={onHomeClick} 
-          className="w-8 h-8 rounded-full aura-logo shadow-lg opacity-80 hover:opacity-100 transition-opacity transform hover:scale-105" 
+        <button
+          onClick={onHomeClick}
+          className="w-8 h-8 rounded-full aura-logo shadow-lg opacity-80 hover:opacity-100 transition-opacity transform hover:scale-105"
           title={`${APP_CONFIG.appName} ${version.version}`}
-        >
-        </button>
+        ></button>
       </div>
     </header>
   );

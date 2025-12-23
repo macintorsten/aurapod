@@ -4,10 +4,10 @@
  */
 
 export const STORAGE_KEYS = {
-  PODCASTS: 'aurapod_podcasts',
-  HISTORY: 'aurapod_history',
-  THEME: 'aurapod_theme',
-  QUEUE: 'aurapod_queue',
+  PODCASTS: "aurapod_podcasts",
+  HISTORY: "aurapod_history",
+  THEME: "aurapod_theme",
+  QUEUE: "aurapod_queue",
 } as const;
 
 export type StorageKey = keyof typeof STORAGE_KEYS;

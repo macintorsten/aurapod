@@ -1,8 +1,8 @@
-import React, { ReactNode } from 'react';
-import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { Podcast, Theme } from '../../types';
-import { View } from '../../constants';
+import React, { ReactNode } from "react";
+import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
+import { Podcast, Theme } from "../../types";
+import { View } from "../../constants";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -38,8 +38,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onSyncHistory,
 }) => {
   const handleHomeClick = () => {
-    onViewChange('home');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    onViewChange("home");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -58,7 +58,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onLoadNewEpisodes={onLoadNewEpisodes}
           onSyncHistory={onSyncHistory}
         />
-        
+
         <main className="flex-1 flex flex-col bg-white dark:bg-zinc-950 overflow-hidden relative">
           <Header
             view={view}
@@ -68,10 +68,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             onHomeClick={handleHomeClick}
             version={version}
           />
-          
-          <div className="flex-1 overflow-y-auto p-8 pb-12">
-            {children}
-          </div>
+
+          <div className="flex-1 overflow-y-auto p-8 pb-12">{children}</div>
         </main>
       </div>
     </div>

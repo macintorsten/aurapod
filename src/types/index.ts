@@ -1,7 +1,14 @@
+export type Theme = "dark" | "light" | "system";
 
-export type Theme = 'dark' | 'light' | 'system';
-
-export type ErrorCategory = 'network' | 'parsing' | 'playback' | 'system' | 'feed' | 'storage' | 'cast' | 'share';
+export type ErrorCategory =
+  | "network"
+  | "parsing"
+  | "playback"
+  | "system"
+  | "feed"
+  | "storage"
+  | "cast"
+  | "share";
 
 export interface AppError {
   category: ErrorCategory;

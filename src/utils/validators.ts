@@ -7,7 +7,7 @@
  */
 export function isValidUrl(url: string): boolean {
   if (!url) return false;
-  
+
   try {
     new URL(url);
     return true;
@@ -21,7 +21,7 @@ export function isValidUrl(url: string): boolean {
  */
 export function isValidFeedUrl(url: string): boolean {
   if (!isValidUrl(url)) return false;
-  
+
   // Check for common feed patterns
   const feedPatterns = [
     /\.rss$/i,
@@ -30,8 +30,8 @@ export function isValidFeedUrl(url: string): boolean {
     /\/rss\/?$/i,
     /\/podcast\/?$/i,
   ];
-  
-  return feedPatterns.some(pattern => pattern.test(url));
+
+  return feedPatterns.some((pattern) => pattern.test(url));
 }
 
 /**
@@ -39,11 +39,11 @@ export function isValidFeedUrl(url: string): boolean {
  */
 export function isValidAudioUrl(url: string): boolean {
   if (!isValidUrl(url)) return false;
-  
-  const audioExtensions = ['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.opus'];
+
+  const audioExtensions = [".mp3", ".m4a", ".wav", ".ogg", ".aac", ".opus"];
   const lowerUrl = url.toLowerCase();
-  
-  return audioExtensions.some(ext => lowerUrl.includes(ext));
+
+  return audioExtensions.some((ext) => lowerUrl.includes(ext));
 }
 
 /**
@@ -51,7 +51,7 @@ export function isValidAudioUrl(url: string): boolean {
  */
 export function isValidEmail(email: string): boolean {
   if (!email) return false;
-  
+
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
@@ -60,9 +60,9 @@ export function isValidEmail(email: string): boolean {
  * Sanitize HTML string (basic XSS protection)
  */
 export function sanitizeHtml(html: string): string {
-  if (!html) return '';
-  
-  const div = document.createElement('div');
+  if (!html) return "";
+
+  const div = document.createElement("div");
   div.textContent = html;
   return div.innerHTML;
 }
@@ -78,8 +78,10 @@ export function isEmpty(str: string | null | undefined): boolean {
  * Validate playback progress (0-1)
  */
 export function isValidProgress(progress: number): boolean {
-  return typeof progress === 'number' && 
-         isFinite(progress) && 
-         progress >= 0 && 
-         progress <= 1;
+  return (
+    typeof progress === "number" &&
+    isFinite(progress) &&
+    progress >= 0 &&
+    progress <= 1
+  );
 }

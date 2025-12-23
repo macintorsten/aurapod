@@ -1,6 +1,6 @@
-import React from 'react';
-import { Episode, PlaybackState } from '../types';
-import EpisodeItem from './EpisodeItem';
+import React from "react";
+import { Episode, PlaybackState } from "../types";
+import EpisodeItem from "./EpisodeItem";
 
 interface EpisodeListProps {
   episodes: Episode[];
@@ -21,7 +21,7 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
   onShare,
   loadingEpisodeId,
   showPodcastInfo = false,
-  emptyMessage = 'No episodes found'
+  emptyMessage = "No episodes found",
 }) => {
   if (episodes.length === 0) {
     return (
@@ -33,10 +33,10 @@ export const EpisodeList: React.FC<EpisodeListProps> = ({
 
   return (
     <div className="space-y-3">
-      {episodes.map(episode => {
+      {episodes.map((episode) => {
         const playbackState = history[episode.id];
-        const progress = playbackState 
-          ? (playbackState.currentTime / playbackState.duration) * 100 
+        const progress = playbackState
+          ? (playbackState.currentTime / playbackState.duration) * 100
           : 0;
 
         return (

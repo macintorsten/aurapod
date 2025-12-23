@@ -1,7 +1,6 @@
-
-import { Podcast, PlaybackState, Theme, Episode } from '../types';
-import { STORAGE_KEYS } from '../constants';
-import { APP_CONSTANTS } from '../constants';
+import { Podcast, PlaybackState, Theme, Episode } from "../types";
+import { STORAGE_KEYS } from "../constants";
+import { APP_CONSTANTS } from "../constants";
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
@@ -13,11 +12,11 @@ class LocalStorageAdapter implements StorageAdapter {
   getItem(key: string): string | null {
     return localStorage.getItem(key);
   }
-  
+
   setItem(key: string, value: string): void {
     localStorage.setItem(key, value);
   }
-  
+
   removeItem(key: string): void {
     localStorage.removeItem(key);
   }
@@ -45,7 +44,7 @@ export class StorageService {
   }
 
   getTheme(): Theme {
-    return (this.storage.getItem(STORAGE_KEYS.THEME) as Theme) || 'dark';
+    return (this.storage.getItem(STORAGE_KEYS.THEME) as Theme) || "dark";
   }
 
   saveTheme(theme: Theme): void {
@@ -61,10 +60,17 @@ export class StorageService {
     this.storage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(queue));
   }
 
-  updatePlayback(episode: Episode, podcast: Podcast | { title: string }, currentTime: number, duration: number): void {
+  updatePlayback(
+    episode: Episode,
+    podcast: Podcast | { title: string },
+    currentTime: number,
+    duration: number
+  ): void {
     const history = this.getHistory();
-    const isCompleted = duration > 0 && (currentTime / duration) > APP_CONSTANTS.COMPLETION_THRESHOLD;
-    
+    const isCompleted =
+      duration > 0 &&
+      currentTime / duration > APP_CONSTANTS.COMPLETION_THRESHOLD;
+
     history[episode.id] = {
       episodeId: episode.id,
       podcastId: episode.podcastId,
@@ -78,9 +84,9 @@ export class StorageService {
       podcastTitle: podcast.title,
       description: episode.description,
       pubDate: episode.pubDate,
-      audioUrl: episode.audioUrl // Added for fallback playback support
+      audioUrl: episode.audioUrl, // Added for fallback playback support
     };
-    
+
     this.saveHistory(history);
   }
 }
@@ -89,4 +95,5 @@ export class StorageService {
 export const storageService = new StorageService();
 
 // Export factory for testing
-export const createStorageService = (adapter: StorageAdapter) => new StorageService(adapter);
+export const createStorageService = (adapter: StorageAdapter) =>
+  new StorageService(adapter);

@@ -1,8 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Theme } from '../types';
-import { storageService } from '../services/storageService';
-import { APP_CONFIG } from '../config';
-import { VIEWS, View } from '../constants';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { Theme } from "../types";
+import { storageService } from "../services/storageService";
+import { APP_CONFIG } from "../config";
+import { VIEWS, View } from "../constants";
 
 interface VersionInfo {
   version: string;
@@ -14,21 +21,21 @@ interface UIContextValue {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  
+
   // View/routing (temporary until React Router is added)
   view: View;
   setView: (view: View) => void;
-  
+
   // Modal states
   showStatusPanel: boolean;
   setShowStatusPanel: (show: boolean) => void;
-  
+
   showShareModal: boolean;
   setShowShareModal: (show: boolean) => void;
-  
+
   // Version info
   version: VersionInfo;
-  
+
   // Sidebar
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -39,7 +46,7 @@ const UIContext = createContext<UIContextValue | undefined>(undefined);
 export function useUIContext() {
   const context = useContext(UIContext);
   if (!context) {
-    throw new Error('useUIContext must be used within UIProvider');
+    throw new Error("useUIContext must be used within UIProvider");
   }
   return context;
 }
@@ -49,30 +56,34 @@ interface UIProviderProps {
 }
 
 export function UIProvider({ children }: UIProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(storageService.getTheme() || APP_CONFIG.defaultTheme);
+  const [theme, setThemeState] = useState<Theme>(
+    storageService.getTheme() || APP_CONFIG.defaultTheme
+  );
   const [view, setView] = useState<View>(VIEWS.HOME);
   const [showStatusPanel, setShowStatusPanel] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [version, setVersion] = useState<VersionInfo>({
-    version: '0.0.1',
-    codename: 'Aurora',
-    buildDate: '2023-11-20',
+    version: "0.0.1",
+    codename: "Aurora",
+    buildDate: "2023-11-20",
   });
 
   // Load version info
   useEffect(() => {
-    fetch('./version.json')
-      .then(res => res.json())
+    fetch("./version.json")
+      .then((res) => res.json())
       .then(setVersion)
-      .catch(err => console.debug("Version metadata unavailable", err));
+      .catch((err) => console.debug("Version metadata unavailable", err));
   }, []);
 
   // Apply theme to document
   useEffect(() => {
     let effectiveTheme = theme;
-    if (theme === 'system') {
-      effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (theme === "system") {
+      effectiveTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
     }
     document.documentElement.className = effectiveTheme;
   }, [theme]);

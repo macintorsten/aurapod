@@ -2,7 +2,7 @@
  * Error handling utilities
  */
 
-import { AppError, ErrorCategory } from '../types';
+import { AppError, ErrorCategory } from "../types";
 
 /**
  * Create a standardized error object
@@ -14,7 +14,7 @@ export function createError(
   context?: any
 ): AppError {
   const diagnostics = (error as any)?.diagnostics || {};
-  
+
   return {
     category,
     message,
@@ -34,10 +34,10 @@ export function createError(
  */
 export function isNetworkError(error: any): boolean {
   return (
-    error?.message?.includes('fetch') ||
-    error?.message?.includes('network') ||
-    error?.message?.includes('NetworkError') ||
-    error?.name === 'NetworkError'
+    error?.message?.includes("fetch") ||
+    error?.message?.includes("network") ||
+    error?.message?.includes("NetworkError") ||
+    error?.name === "NetworkError"
   );
 }
 
@@ -46,8 +46,8 @@ export function isNetworkError(error: any): boolean {
  */
 export function isCORSError(error: any): boolean {
   return (
-    error?.message?.includes('CORS') ||
-    error?.message?.includes('cors') ||
+    error?.message?.includes("CORS") ||
+    error?.message?.includes("cors") ||
     error?.diagnostics?.corsIssue
   );
 }
@@ -57,20 +57,20 @@ export function isCORSError(error: any): boolean {
  */
 export function getUserFriendlyMessage(error: AppError): string {
   switch (error.category) {
-    case 'network':
-      return 'Network error. Please check your connection.';
-    case 'feed':
-      return 'Failed to load podcast feed. The feed may be invalid or unavailable.';
-    case 'playback':
-      return 'Playback error. The audio file may be unavailable.';
-    case 'storage':
-      return 'Storage error. Your browser may have run out of space.';
-    case 'cast':
-      return 'Chromecast connection error.';
-    case 'share':
-      return 'Failed to process shared content.';
+    case "network":
+      return "Network error. Please check your connection.";
+    case "feed":
+      return "Failed to load podcast feed. The feed may be invalid or unavailable.";
+    case "playback":
+      return "Playback error. The audio file may be unavailable.";
+    case "storage":
+      return "Storage error. Your browser may have run out of space.";
+    case "cast":
+      return "Chromecast connection error.";
+    case "share":
+      return "Failed to process shared content.";
     default:
-      return 'An unexpected error occurred.';
+      return "An unexpected error occurred.";
   }
 }
 
@@ -78,9 +78,5 @@ export function getUserFriendlyMessage(error: AppError): string {
  * Log error to console with formatting
  */
 export function logError(error: AppError): void {
-  console.error(
-    `[AuraPod:${error.category}]`,
-    error.message,
-    error
-  );
+  console.error(`[AuraPod:${error.category}]`, error.message, error);
 }
