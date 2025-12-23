@@ -106,6 +106,9 @@ const Player: React.FC<PlayerProps> = ({
 
   // Initialize Cast Service
   useEffect(() => {
+    if (!APP_CONFIG.cast.enabled) return;
+    
+    castService.setEnabled(APP_CONFIG.cast.enabled);
     castService.initialize().catch(err => console.warn('Cast init failed:', err));
 
     const unsubscribeState = castService.onStateChange((isConnected, deviceName) => {
@@ -333,17 +336,19 @@ const Player: React.FC<PlayerProps> = ({
           </div>
 
           <div className="hidden lg:flex items-center gap-4 flex-1 justify-end">
-            <button 
-              onClick={handleCastToggle}
-              className={`w-10 h-10 flex items-center justify-center rounded-xl transition ${
-                isCasting 
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400'
-              }`}
-              title={isCasting ? `Casting to ${castDeviceName}` : 'Cast'}
-            >
-              <i className="fa-solid fa-tv"></i>
-            </button>
+            {APP_CONFIG.cast.enabled && (
+              <button 
+                onClick={handleCastToggle}
+                className={`w-10 h-10 flex items-center justify-center rounded-xl transition ${
+                  isCasting 
+                    ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400'
+                }`}
+                title={isCasting ? `Casting to ${castDeviceName}` : 'Cast'}
+              >
+                <i className="fa-solid fa-tv"></i>
+              </button>
+            )}
             <button onClick={onShare} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition"><i className="fa-solid fa-share-nodes"></i></button>
             <button onClick={() => setPlaybackRate(prev => { const n = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length]; if(audioRef.current) audioRef.current.playbackRate = n; return n; })} className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition min-w-[50px]">{playbackRate}x</button>
             <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-red-500 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>

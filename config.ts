@@ -23,6 +23,9 @@ export interface AppConfig {
     next: string;
     seekPrefix: 'digit' | 'arrow';
   };
+  cast: {
+    enabled: boolean;
+  };
 }
 
 export const APP_CONFIG: AppConfig = {
@@ -50,5 +53,8 @@ export const APP_CONFIG: AppConfig = {
     forward: 'l',
     next: 'n',
     seekPrefix: 'digit'
+  },
+  cast: {
+    enabled: true
   }
 };

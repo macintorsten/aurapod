@@ -82,14 +82,30 @@ type CastMediaStatusListener = (status: {
 
 class CastService {
   private isInitialized = false;
+  private isEnabled = true;
   private castContext: CastContext | null = null;
   private remotePlayer: RemotePlayer | null = null;
   private remotePlayerController: RemotePlayerController | null = null;
   private stateChangeListeners: CastStateChangeListener[] = [];
   private mediaStatusListeners: CastMediaStatusListener[] = [];
   
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
+  }
+  
   async initialize(): Promise<boolean> {
+    if (!this.isEnabled) {
+      console.log('Cast is disabled in config');
+      return false;
+    }
+    
     if (this.isInitialized) return true;
+    
+    // Check if Cast API script is loaded (online check)
+    if (!window.__onGCastApiAvailable && !window.cast) {
+      console.warn('Cast API not loaded - may be offline or blocked');
+      return false;
+    }
     
     return new Promise((resolve) => {
       window.__onGCastApiAvailable = (isAvailable: boolean) => {
