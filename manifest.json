@@ -7,6 +7,7 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#09090b",
   "theme_color": "#8b5cf6",
   "categories": ["music", "multimedia", "productivity"],
@@ -26,21 +27,21 @@
   ],
   "shortcuts": [
     {
-      "name": "Discover",
+      "name": "Discover New Waves",
       "short_name": "Discover",
-      "description": "Find new waves",
+      "description": "Explore trending and new podcasts",
       "url": "./?view=home",
       "icons": [{ "src": "icon.svg", "sizes": "512x512" }]
     },
     {
-      "name": "History",
+      "name": "Resume History",
       "short_name": "History",
-      "description": "Resume your past waves",
+      "description": "Continue listening to your past waves",
       "url": "./?view=history",
       "icons": [{ "src": "icon.svg", "sizes": "512x512" }]
     },
     {
-      "name": "New Releases",
+      "name": "Fresh Releases",
       "short_name": "New",
       "url": "./?view=new",
       "icons": [{ "src": "icon.svg", "sizes": "512x512" }]

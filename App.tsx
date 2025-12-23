@@ -123,6 +123,13 @@ const App: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
+    // Request persistent storage to protect user's library
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().then(persistent => {
+        if (persistent) console.log("AuraPod storage is persistent.");
+      });
+    }
+
     const loadedPodcasts = storageService.getPodcasts();
     setPodcasts(loadedPodcasts);
     setHistory(storageService.getHistory());
@@ -456,7 +463,7 @@ const App: React.FC = () => {
             </button>
             <button 
               onClick={() => { setView('history'); syncHistory(); }} 
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'history' ? 'bg-history' === view ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'history' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
             >
               <i className="fa-solid fa-clock-rotate-left text-sm"></i> History
             </button>
@@ -500,12 +507,12 @@ const App: React.FC = () => {
             <div className="mt-8 p-4 bg-indigo-500/10 dark:bg-indigo-900/20 border border-indigo-500/20 rounded-2xl animate-fade-in relative overflow-hidden group">
               <div className="absolute inset-0 aura-logo opacity-5 group-hover:opacity-10 transition"></div>
               <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2 relative">Always Ready</p>
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-white leading-tight mb-3 relative">Keep AuraPod on your Device</h4>
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-white leading-tight mb-3 relative">Use AuraPod as an App</h4>
               <button 
                 onClick={installApp}
                 className="w-full py-2 bg-indigo-600 text-white text-[10px] font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition relative"
               >
-                SAVE TO DEVICE
+                ADD TO YOUR APPS
               </button>
               <button 
                 onClick={() => setShowInstallBanner(false)}

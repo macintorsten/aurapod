@@ -14,7 +14,7 @@ interface PlayerProps {
   onClose: () => void;
   onShare: () => void;
   onProgress?: () => void; 
-  autoPlay?: boolean; // New prop to control autoplay
+  autoPlay?: boolean;
 }
 
 const SPEEDS = [0.5, 0.8, 1, 1.2, 1.5, 1.7, 2];
@@ -29,7 +29,7 @@ const Player: React.FC<PlayerProps> = ({
   onClose, 
   onShare,
   onProgress,
-  autoPlay = true // Defaults to true for normal usage
+  autoPlay = true
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,6 +51,45 @@ const Player: React.FC<PlayerProps> = ({
       if (onProgress) onProgress();
     }
   }, [episode, podcast, error, onProgress]);
+
+  const togglePlay = useCallback(() => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+        saveProgress(); 
+      } else {
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      }
+    }
+  }, [isPlaying, saveProgress]);
+
+  // Media Session API Integration
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: episode.title,
+        artist: podcast.title,
+        album: podcast.title,
+        artwork: [
+          { src: episode.image || podcast.image, sizes: '512x512', type: 'image/png' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => togglePlay());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('seekbackward', () => {
+        if (audioRef.current) audioRef.current.currentTime -= 15;
+      });
+      navigator.mediaSession.setActionHandler('seekforward', () => {
+        if (audioRef.current) audioRef.current.currentTime += 30;
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+         if (audioRef.current) audioRef.current.currentTime = 0;
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => onNext());
+    }
+  }, [episode, podcast, onNext, togglePlay]);
 
   useEffect(() => {
     setError(null);
@@ -108,17 +147,13 @@ const Player: React.FC<PlayerProps> = ({
       const dur = audioRef.current.duration;
       setCurrentTime(cur);
       setDuration(dur);
-    }
-  };
 
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-        saveProgress(); 
-      } else {
-        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      if ('mediaSession' in navigator && isFinite(dur)) {
+        navigator.mediaSession.setPositionState({
+          duration: dur,
+          playbackRate: playbackRate,
+          position: cur
+        });
       }
     }
   };
