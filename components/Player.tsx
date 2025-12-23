@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Episode, Podcast } from '../types';
 import { storageService } from '../services/storageService';
+import { castService } from '../services/castService';
 import { APP_CONFIG } from '../config';
 
 interface PlayerProps {
@@ -40,9 +41,18 @@ const Player: React.FC<PlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [isCasting, setIsCasting] = useState(false);
+  const [castDeviceName, setCastDeviceName] = useState<string | undefined>();
 
   const saveProgress = useCallback(() => {
-    if (audioRef.current && !error && audioRef.current.currentTime > 0.1) {
+    if (isCasting) {
+      const castTime = castService.getCurrentTime();
+      const castDuration = castService.getDuration();
+      if (castTime > 0.1) {
+        storageService.updatePlayback(episode, podcast, castTime, castDuration);
+        if (onProgress) onProgress();
+      }
+    } else if (audioRef.current && !error && audioRef.current.currentTime > 0.1) {
       storageService.updatePlayback(
         episode, 
         podcast, 
@@ -51,10 +61,19 @@ const Player: React.FC<PlayerProps> = ({
       );
       if (onProgress) onProgress();
     }
-  }, [episode, podcast, error, onProgress]);
+  }, [episode, podcast, error, onProgress, isCasting]);
 
   const togglePlay = useCallback(() => {
-    if (audioRef.current) {
+    if (isCasting) {
+      if (castService.isPlaying()) {
+        castService.pause();
+        setIsPlaying(false);
+      } else {
+        castService.play();
+        setIsPlaying(true);
+      }
+      saveProgress();
+    } else if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -63,19 +82,80 @@ const Player: React.FC<PlayerProps> = ({
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
       }
     }
-  }, [isPlaying, saveProgress]);
+  }, [isPlaying, saveProgress, isCasting]);
 
   const skipSeconds = useCallback((seconds: number) => {
-    if (audioRef.current) {
+    if (isCasting) {
+      const newTime = Math.max(0, Math.min(castService.getDuration(), castService.getCurrentTime() + seconds));
+      castService.seek(newTime);
+    } else if (audioRef.current) {
       audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration, audioRef.current.currentTime + seconds));
     }
-  }, []);
+  }, [isCasting]);
 
   const seekToPercentage = useCallback((percent: number) => {
-    if (audioRef.current && isFinite(audioRef.current.duration)) {
+    if (isCasting) {
+      const duration = castService.getDuration();
+      if (isFinite(duration)) {
+        castService.seek((percent / 100) * duration);
+      }
+    } else if (audioRef.current && isFinite(audioRef.current.duration)) {
       audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
     }
-  }, []);
+  }, [isCasting]);
+
+  // Initialize Cast Service
+  useEffect(() => {
+    castService.initialize().catch(err => console.warn('Cast init failed:', err));
+
+    const unsubscribeState = castService.onStateChange((isConnected, deviceName) => {
+      setIsCasting(isConnected);
+      setCastDeviceName(deviceName);
+      
+      if (isConnected && audioRef.current) {
+        // Transfer playback to Cast
+        const currentTime = audioRef.current.currentTime;
+        audioRef.current.pause();
+        setIsPlaying(false);
+        
+        castService.loadMedia(episode, podcast, currentTime)
+          .then(() => {
+            setIsPlaying(true);
+          })
+          .catch(err => console.error('Failed to load media on Cast:', err));
+      } else if (!isConnected && audioRef.current) {
+        // Transfer back to local playback
+        const currentTime = castService.getCurrentTime();
+        audioRef.current.currentTime = currentTime;
+        if (isPlaying) {
+          audioRef.current.play().catch(() => setIsPlaying(false));
+        }
+      }
+    });
+
+    const unsubscribeMedia = castService.onMediaStatus((status) => {
+      setIsPlaying(status.isPlaying);
+      setCurrentTime(status.currentTime);
+      setDuration(status.duration);
+    });
+
+    return () => {
+      unsubscribeState();
+      unsubscribeMedia();
+    };
+  }, [episode, podcast, isPlaying]);
+
+  const handleCastToggle = async () => {
+    if (isCasting) {
+      castService.endSession();
+    } else {
+      try {
+        await castService.requestSession();
+      } catch (error) {
+        console.warn('Cast session request cancelled or failed:', error);
+      }
+    }
+  };
 
   // Keyboard Shortcuts via Config
   useEffect(() => {
@@ -119,7 +199,23 @@ const Player: React.FC<PlayerProps> = ({
   useEffect(() => {
     setError(null);
     if (!episode.audioUrl) { setError("No source found."); setIsPlaying(false); return; }
-    if (audioRef.current) {
+    
+    if (isCasting) {
+      // Load media on Cast device
+      const historyData = storageService.getHistory();
+      const state = historyData[episode.id];
+      const startTime = state && !state.completed ? state.currentTime : 0;
+      
+      castService.loadMedia(episode, podcast, startTime)
+        .then(() => {
+          setIsPlaying(true);
+          setIsBuffering(false);
+        })
+        .catch(() => {
+          setIsPlaying(false);
+          setIsBuffering(false);
+        });
+    } else if (audioRef.current) {
       const isNewEpisode = audioRef.current.src !== episode.audioUrl;
       if (isNewEpisode) {
         audioRef.current.pause();
@@ -141,7 +237,7 @@ const Player: React.FC<PlayerProps> = ({
         }
       }
     }
-  }, [episode.id, episode.audioUrl, autoPlay, playbackRate]);
+  }, [episode.id, episode.audioUrl, autoPlay, playbackRate, isCasting, podcast]);
 
   useEffect(() => {
     const interval = setInterval(() => { if (isPlaying) saveProgress(); }, 5000);
@@ -149,6 +245,10 @@ const Player: React.FC<PlayerProps> = ({
   }, [isPlaying, saveProgress]);
 
   const handleTimeUpdate = () => {
+    if (isCasting) {
+      // Time updates come through the Cast media status listener
+      return;
+    }
     if (audioRef.current) {
       const cur = audioRef.current.currentTime;
       const dur = audioRef.current.duration;
@@ -191,7 +291,16 @@ const Player: React.FC<PlayerProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-bold truncate text-zinc-900 dark:text-zinc-100 leading-tight mb-0.5">{episode.title}</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-medium">{podcast.title}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-medium">
+                {isCasting ? (
+                  <span className="flex items-center gap-1.5">
+                    <i className="fa-solid fa-tv text-indigo-600"></i>
+                    <span>Casting to {castDeviceName}</span>
+                  </span>
+                ) : (
+                  podcast.title
+                )}
+              </p>
             </div>
           </div>
 
@@ -217,13 +326,24 @@ const Player: React.FC<PlayerProps> = ({
               <div className="relative flex-1 h-1 flex items-center">
                 <div className="absolute inset-0 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
                 <div className="absolute inset-y-0 left-0 bg-indigo-600 rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                <input type="range" min="0" max={duration || 0} step="0.1" value={currentTime} onChange={(e) => { const v = parseFloat(e.target.value); if(audioRef.current) audioRef.current.currentTime = v; }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <input type="range" min="0" max={duration || 0} step="0.1" value={currentTime} onChange={(e) => { const v = parseFloat(e.target.value); if(isCasting) { castService.seek(v); } else if(audioRef.current) { audioRef.current.currentTime = v; } }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
               </div>
               <span className="text-[10px] text-zinc-400 w-10 font-mono">{formatTime(duration)}</span>
             </div>
           </div>
 
           <div className="hidden lg:flex items-center gap-4 flex-1 justify-end">
+            <button 
+              onClick={handleCastToggle}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition ${
+                isCasting 
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                  : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400'
+              }`}
+              title={isCasting ? `Casting to ${castDeviceName}` : 'Cast'}
+            >
+              <i className="fa-solid fa-tv"></i>
+            </button>
             <button onClick={onShare} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition"><i className="fa-solid fa-share-nodes"></i></button>
             <button onClick={() => setPlaybackRate(prev => { const n = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length]; if(audioRef.current) audioRef.current.playbackRate = n; return n; })} className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition min-w-[50px]">{playbackRate}x</button>
             <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-red-500 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
