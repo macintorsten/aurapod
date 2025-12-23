@@ -13,7 +13,8 @@ interface PlayerProps {
   onClearQueue: () => void;
   onClose: () => void;
   onShare: () => void;
-  onProgress?: () => void; // Added for state sync
+  onProgress?: () => void; 
+  autoPlay?: boolean; // New prop to control autoplay
 }
 
 const SPEEDS = [0.5, 0.8, 1, 1.2, 1.5, 1.7, 2];
@@ -27,7 +28,8 @@ const Player: React.FC<PlayerProps> = ({
   onClearQueue, 
   onClose, 
   onShare,
-  onProgress
+  onProgress,
+  autoPlay = true // Defaults to true for normal usage
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -72,21 +74,24 @@ const Player: React.FC<PlayerProps> = ({
       audioRef.current.playbackRate = playbackRate;
       audioRef.current.load();
       
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            setIsPlaying(true);
-            // Initial save to register in history immediately
-            setTimeout(saveProgress, 1000);
-          })
-          .catch((err) => {
-            console.warn("Playback prevented or failed:", err);
-            setIsPlaying(false);
-          });
+      if (autoPlay) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPlaying(true);
+              setTimeout(saveProgress, 1000);
+            })
+            .catch((err) => {
+              console.warn("Playback prevented or failed:", err);
+              setIsPlaying(false);
+            });
+        }
+      } else {
+        setIsPlaying(false);
       }
     }
-  }, [episode.id, episode.audioUrl, saveProgress]);
+  }, [episode.id, episode.audioUrl, saveProgress, autoPlay]);
 
   useEffect(() => {
     const interval = setInterval(() => {

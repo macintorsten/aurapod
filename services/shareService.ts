@@ -2,19 +2,38 @@
 import pako from 'pako';
 
 export interface SharedData {
-  f?: string[]; // feedUrls
-  p?: string;   // activePodcastFeedUrl
-  e?: string;   // activeEpisodeId
+  f?: string[]; // feedUrls (Discovery Collection)
+  p?: string;   // activePodcastFeedUrl (RSS Source)
+  e?: string;   // activeEpisodeId (GUID)
+  // Universal Metadata for Standalone Playback
+  t?: string;   // title
+  i?: string;   // image
+  d?: string;   // description
+  u?: string;   // audioUrl
+  st?: string;  // series title (Podcast Name)
+  si?: string;  // series image (Podcast Image)
 }
 
 export const shareService = {
+  /**
+   * Cleans up HTML and truncates description to keep URL size manageable
+   */
+  sanitizeDescription: (html: string): string => {
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    let text = tmp.textContent || tmp.innerText || "";
+    if (text.length > 300) {
+      text = text.substring(0, 297) + "...";
+    }
+    return text.trim();
+  },
+
   /**
    * Compresses and encodes data to a URL-safe string
    */
   encode: (data: SharedData): string => {
     const json = JSON.stringify(data);
     const compressed = pako.deflate(json);
-    // Use a loop for binary conversion to avoid stack size limits
     let binary = '';
     for (let i = 0; i < compressed.length; i++) {
       binary += String.fromCharCode(compressed[i]);
@@ -43,28 +62,21 @@ export const shareService = {
 
   /**
    * Generates the full share URL.
-   * Note: For cross-device sharing to work, the app must be hosted on a public URL (e.g., GitHub Pages).
    */
-  generateUrl: (data: SharedData): { url: string; length: number; isTooLong: boolean } => {
+  generateUrl: (data: SharedData): { url: string; length: number; isTooLong: boolean; payloadLength: number } => {
     const code = shareService.encode(data);
     
-    // 1. Get the absolute base path (strip existing query and hash)
     let baseUrl = window.location.href.split('?')[0].split('#')[0];
-    
-    // 2. Strip 'blob:' if present (common in some sandbox/preview environments)
-    // This allows the link to at least look like a valid web URL.
     if (baseUrl.startsWith('blob:')) {
       baseUrl = baseUrl.substring(5);
     }
 
-    // 3. Construct final URL using URL object for proper encoding
     let finalUrl: string;
     try {
       const urlObj = new URL(baseUrl);
       urlObj.searchParams.set('s', code);
       finalUrl = urlObj.toString();
     } catch (e) {
-      // Fallback to basic string manipulation if URL constructor fails
       const separator = baseUrl.includes('?') ? '&' : '?';
       finalUrl = `${baseUrl}${separator}s=${code}`;
     }
@@ -72,7 +84,8 @@ export const shareService = {
     return {
       url: finalUrl,
       length: finalUrl.length,
-      isTooLong: finalUrl.length > 1800
+      isTooLong: finalUrl.length > 2000,
+      payloadLength: code.length
     };
   }
 };

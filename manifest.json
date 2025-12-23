@@ -1,11 +1,15 @@
+
 {
   "name": "AuraPod Player",
   "short_name": "AuraPod",
-  "description": "A standalone podcast player that works entirely in your browser.",
+  "description": "A standalone podcast player that works entirely in your browser. Purely personal, high-performance audio.",
+  "id": "/aurapod/",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#09090b",
   "theme_color": "#8b5cf6",
+  "categories": ["music", "multimedia", "productivity"],
   "icons": [
     {
       "src": "icon.svg",
@@ -18,6 +22,28 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Discover",
+      "short_name": "Discover",
+      "description": "Find new waves",
+      "url": "./?view=home",
+      "icons": [{ "src": "icon.svg", "sizes": "512x512" }]
+    },
+    {
+      "name": "History",
+      "short_name": "History",
+      "description": "Resume your past waves",
+      "url": "./?view=history",
+      "icons": [{ "src": "icon.svg", "sizes": "512x512" }]
+    },
+    {
+      "name": "New Releases",
+      "short_name": "New",
+      "url": "./?view=new",
+      "icons": [{ "src": "icon.svg", "sizes": "512x512" }]
     }
   ]
 }
