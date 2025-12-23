@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# AuraPod
 
-# Run and deploy your AI Studio app
+![AuraPod Screenshot](auropod_screenshot.png)
 
-This contains everything you need to run your app locally.
+A client-side podcast player web application built to run entirely in your browser.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1L5_4m-UYyph3sVR1HVNfPFFzRJUOEvEM
+**⚠️ Under Heavy Development**  
+This project is in active development and is expected to have bugs, particularly related to CORS (Cross-Origin Resource Sharing) issues when fetching podcast feeds.
 
-## Run Locally
+## Try It Out
 
-**Prerequisites:**  Node.js
+🔗 **[Test AuraPod on GitHub Pages](https://macintorsten.github.io/aurapod/)**
 
+## Development
+
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```bash
+   npm install
+   ```
+2. Run the dev server:
+   ```bash
+   npm run dev
+   ```
