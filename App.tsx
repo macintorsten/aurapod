@@ -4,6 +4,7 @@ import { Podcast, Episode, PlaybackState, Theme } from './types';
 import { storageService } from './services/storageService';
 import { rssService } from './services/rssService';
 import { shareService, SharedData } from './services/shareService';
+import { APP_CONFIG } from './config';
 import Player from './components/Player';
 import EpisodeItem from './components/EpisodeItem';
 import confetti from 'canvas-confetti';
@@ -25,8 +26,8 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<Podcast[]>([]);
   const [suggestedPodcasts, setSuggestedPodcasts] = useState<Podcast[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [view, setView] = useState<'home' | 'podcast' | 'history' | 'new'>('home');
-  const [theme, setTheme] = useState<Theme>(storageService.getTheme());
+  const [view, setView] = useState<'home' | 'podcast' | 'history' | 'new' | 'queue'>('home');
+  const [theme, setTheme] = useState<Theme>(storageService.getTheme() || APP_CONFIG.defaultTheme);
   
   // PWA Installation State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -114,7 +115,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // PWA Installation Listener
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -123,10 +123,9 @@ const App: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
-    // Request persistent storage to protect user's library
     if (navigator.storage && navigator.storage.persist) {
       navigator.storage.persist().then(persistent => {
-        if (persistent) console.log("AuraPod storage is persistent.");
+        if (persistent) console.log("Storage is persistent.");
       });
     }
 
@@ -147,6 +146,7 @@ const App: React.FC = () => {
     const viewParam = params.get('view');
     if (viewParam === 'history') setView('history');
     if (viewParam === 'new') setView('new');
+    if (viewParam === 'queue') setView('queue');
 
     const shareCode = params.get('s');
     if (shareCode) {
@@ -434,16 +434,16 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-950">
+    <div className="flex h-screen overflow-hidden text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-950 font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex">
+      <aside className="w-64 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8 text-zinc-900 dark:text-white group cursor-pointer" onClick={() => setView('home')}>
             <div className="w-9 h-9 aura-logo rounded-xl flex items-center justify-center text-white animate-pulse-slow">
               <i className="fa-solid fa-microphone-lines text-sm relative z-10"></i>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold tracking-tight leading-none">AuraPod</h1>
+              <h1 className="text-xl font-bold tracking-tight leading-none">{APP_CONFIG.appName}</h1>
               <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Standalone</span>
             </div>
           </div>
@@ -459,7 +459,16 @@ const App: React.FC = () => {
               onClick={loadNewEpisodes} 
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'new' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
             >
-              <i className="fa-solid fa-sparkles text-sm"></i> New Releases
+              <i className="fa-solid fa-bolt-lightning text-sm"></i> New Releases
+            </button>
+            <button 
+              onClick={() => { setView('queue'); }} 
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${view === 'queue' ? 'bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium' : 'hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50'}`}
+            >
+              <i className="fa-solid fa-list-ul text-sm"></i> Play Queue
+              {queue.length > 0 && (
+                <span className="ml-auto text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full">{queue.length}</span>
+              )}
             </button>
             <button 
               onClick={() => { setView('history'); syncHistory(); }} 
@@ -502,12 +511,11 @@ const App: React.FC = () => {
             ))}
           </div>
 
-          {/* PWA Install Promo */}
           {showInstallBanner && (
             <div className="mt-8 p-4 bg-indigo-500/10 dark:bg-indigo-900/20 border border-indigo-500/20 rounded-2xl animate-fade-in relative overflow-hidden group">
               <div className="absolute inset-0 aura-logo opacity-5 group-hover:opacity-10 transition"></div>
               <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2 relative">Always Ready</p>
-              <h4 className="text-xs font-bold text-zinc-900 dark:text-white leading-tight mb-3 relative">Use AuraPod as an App</h4>
+              <h4 className="text-xs font-bold text-zinc-900 dark:text-white leading-tight mb-3 relative">Use {APP_CONFIG.appName} as an App</h4>
               <button 
                 onClick={installApp}
                 className="w-full py-2 bg-indigo-600 text-white text-[10px] font-bold rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition relative"
@@ -554,7 +562,11 @@ const App: React.FC = () => {
         <header className="h-16 border-b border-zinc-100 dark:border-zinc-900 flex items-center px-8 justify-between shrink-0 bg-white/80 dark:bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <h2 className="font-bold text-zinc-900 dark:text-white text-lg">
-              {view === 'home' ? 'Discover' : view === 'history' ? 'History' : view === 'new' ? 'New Releases' : activePodcast?.title}
+              {view === 'home' ? 'Discover' : 
+               view === 'history' ? 'History' : 
+               view === 'new' ? 'New Releases' : 
+               view === 'queue' ? 'Play Queue' :
+               activePodcast?.title}
             </h2>
           </div>
           <div className="flex items-center gap-4">
@@ -590,7 +602,7 @@ const App: React.FC = () => {
                 {searchResults.length > 0 && (
                   <div className="mt-12">
                     <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-8">Search Results</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
                       {searchResults.map(result => (
                         <div 
                           key={result.id}
@@ -622,23 +634,23 @@ const App: React.FC = () => {
                   <div className="mt-8">
                     <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-8">Trending Worldwide</h3>
                     {loadingSuggestions ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
-                        {[...Array(8)].map((_, i) => (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 animate-pulse">
+                        {[...Array(6)].map((_, i) => (
                           <div key={i} className="h-24 bg-zinc-100 dark:bg-zinc-900/40 rounded-2xl"></div>
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {suggestedPodcasts.map(podcast => (
                           <button 
                             key={podcast.feedUrl || podcast.id}
                             onClick={() => handleSelectPodcast(podcast)}
-                            className="bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 transition flex items-center gap-4 group shadow-sm text-left"
+                            className="bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 transition flex items-center gap-4 group shadow-sm text-left overflow-hidden"
                           >
-                            <img src={podcast.image} className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-sm" alt="" />
-                            <div className="overflow-hidden flex-1">
+                            <img src={podcast.image} className="w-16 h-16 rounded-xl object-cover shrink-0 shadow-sm" alt="" />
+                            <div className="overflow-hidden flex-1 min-w-0">
                               <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{podcast.title}</p>
-                              <p className="text-[10px] text-zinc-500 truncate">{podcast.author}</p>
+                              <p className="text-[10px] text-zinc-500 truncate font-medium">{podcast.author}</p>
                             </div>
                             {isSubscribed(podcast.feedUrl) ? (
                               <i className="fa-solid fa-check text-green-500 shrink-0 ml-auto"></i>
@@ -664,7 +676,7 @@ const App: React.FC = () => {
                 <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Waves of the Past</h3>
                 <button 
                   onClick={clearHistory}
-                  className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest uppercase"
+                  className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest uppercase px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl"
                 >
                   <i className="fa-solid fa-trash-can mr-2"></i> Clear History
                 </button>
@@ -672,7 +684,7 @@ const App: React.FC = () => {
 
               {Object.keys(history).length === 0 ? (
                 <div className="text-center py-40 space-y-4">
-                  <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200">
+                  <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200 shadow-inner">
                     <i className="fa-solid fa-clock-rotate-left text-3xl"></i>
                   </div>
                   <p className="text-zinc-500 italic font-medium">Your waves haven't broken yet. Start listening to see your history.</p>
@@ -691,11 +703,62 @@ const App: React.FC = () => {
                         description: item.description,
                         pubDate: item.pubDate,
                         podcastId: item.podcastId,
-                        audioUrl: item.audioUrl 
+                        audioUrl: item.audioUrl,
+                        duration: item.duration ? `${Math.floor(item.duration/60)}m` : 'Shared'
                       }}
                       progress={(item.currentTime / (item.duration || 1)) * 100}
-                      isHistory
                       onPlay={() => handlePlayFromHistory(item)}
+                      onQueue={() => {
+                        const ep = {
+                          id: item.episodeId,
+                          podcastId: item.podcastId,
+                          title: item.title || '',
+                          description: item.description || '',
+                          pubDate: item.pubDate || '',
+                          audioUrl: item.audioUrl || '',
+                          duration: item.duration ? `${Math.floor(item.duration/60)}m` : '0:00',
+                          link: '',
+                          image: item.image,
+                          podcastTitle: item.podcastTitle
+                        };
+                        addToQueue(ep);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'queue' && (
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-10">
+                <h3 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Upcoming Frequencies</h3>
+                <button 
+                  onClick={clearQueue}
+                  className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest uppercase px-4 py-2 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl"
+                >
+                  <i className="fa-solid fa-layer-group mr-2"></i> Clear Queue
+                </button>
+              </div>
+
+              {queue.length === 0 ? (
+                <div className="text-center py-40 space-y-4">
+                  <div className="w-20 h-20 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200 shadow-inner">
+                    <i className="fa-solid fa-list-ul text-3xl"></i>
+                  </div>
+                  <p className="text-zinc-500 italic font-medium">The queue is silent. Add episodes to keep the waves rolling.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6">
+                  {queue.map((episode, idx) => (
+                    <EpisodeItem 
+                      key={episode.id + idx}
+                      isActive={currentEpisode?.id === episode.id}
+                      episode={episode}
+                      progress={getProgress(episode.id)}
+                      onPlay={() => { setPlayerAutoplay(true); setCurrentEpisode(episode); removeFromQueue(episode.id); }}
+                      onRemove={() => removeFromQueue(episode.id)}
                     />
                   ))}
                 </div>
@@ -751,9 +814,9 @@ const App: React.FC = () => {
 
               <div className="flex flex-col md:flex-row gap-10 mb-20 items-start">
                 <img src={activePodcast.image} className="w-56 h-56 md:w-72 md:h-72 rounded-[2.5rem] shadow-2xl object-cover shrink-0" alt="" />
-                <div className="space-y-6 flex-1 pt-2">
+                <div className="space-y-6 flex-1 pt-2 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">Aura Verified</span>
+                    <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest shrink-0">Aura Verified</span>
                     <div className="flex items-center gap-3">
                       {!isSubscribed(activePodcast.feedUrl) ? (
                         <button 
@@ -775,8 +838,8 @@ const App: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <h3 className="text-5xl font-extrabold text-zinc-900 dark:text-white leading-tight tracking-tight">{activePodcast.title}</h3>
-                  <p className="text-xl text-indigo-600 dark:text-indigo-400 font-bold">{activePodcast.author}</p>
+                  <h3 className="text-5xl font-extrabold text-zinc-900 dark:text-white leading-tight tracking-tight break-words">{activePodcast.title}</h3>
+                  <p className="text-xl text-indigo-600 dark:text-indigo-400 font-bold truncate">{activePodcast.author}</p>
                   <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-3xl leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: activePodcast.description }}></p>
                 </div>
               </div>

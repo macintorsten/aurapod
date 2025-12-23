@@ -1,5 +1,54 @@
 
 import { Podcast, Episode } from '../types';
+import { APP_CONFIG } from '../config';
+
+/**
+ * Interfaces for external data providers
+ */
+export interface SearchProvider {
+  search(term: string): Promise<Podcast[]>;
+}
+
+export interface DiscoveryProvider {
+  getTrending(): Promise<Podcast[]>;
+}
+
+/**
+ * Robust fetch helper that cycles through configured proxies on failure
+ */
+const fetchWithProxy = async (targetUrl: string, isJson: boolean = false): Promise<string | any> => {
+  const sanitizedUrl = targetUrl.trim();
+  
+  // Try direct fetch first for speed
+  try {
+    const directRes = await fetch(sanitizedUrl, { signal: AbortSignal.timeout(3000) });
+    if (directRes.ok) return isJson ? await directRes.json() : await directRes.text();
+  } catch (e) {
+    console.debug("Direct fetch skipped/failed, proceeding to proxies...");
+  }
+
+  for (const proxyBase of APP_CONFIG.proxyUrls) {
+    try {
+      const proxyUrl = `${proxyBase}${encodeURIComponent(sanitizedUrl)}`;
+      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+      if (!response.ok) continue;
+
+      // Handle AllOrigins specific JSON wrapper
+      if (proxyBase.includes('allorigins')) {
+        const data = await response.json();
+        const content = data.contents;
+        if (!content) continue;
+        return isJson ? (typeof content === 'string' ? JSON.parse(content) : content) : content;
+      }
+
+      return isJson ? await response.json() : await response.text();
+    } catch (err) {
+      console.warn(`Proxy ${proxyBase} failed for ${sanitizedUrl}:`, err);
+      continue;
+    }
+  }
+  throw new Error(`Failed to fetch resource after trying all proxies: ${targetUrl}`);
+};
 
 /**
  * Robust helper to find tags by name, including namespaced ones
@@ -92,18 +141,15 @@ const parseRssXml = (text: string, originalUrl: string): { podcast: Podcast, epi
   return { podcast, episodes };
 };
 
-export const rssService = {
-  /**
-   * Search for podcasts using the iTunes Search API.
-   */
-  searchPodcasts: async (term: string): Promise<Podcast[]> => {
+/**
+ * Default Implementation using iTunes API
+ */
+class ItunesProvider implements SearchProvider, DiscoveryProvider {
+  async search(term: string): Promise<Podcast[]> {
     if (!term || term.length < 2) return [];
-    
     try {
-      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=podcast&limit=15`);
-      if (!response.ok) throw new Error("Search API failed");
-      
-      const data = await response.json();
+      const url = `${APP_CONFIG.providers.itunes.searchUrl}?term=${encodeURIComponent(term)}&entity=podcast&limit=15`;
+      const data = await fetchWithProxy(url, true);
       return data.results.map((item: any) => ({
         id: item.collectionId.toString(),
         title: item.collectionName,
@@ -116,53 +162,21 @@ export const rssService = {
       console.error("iTunes Search Error:", err);
       return [];
     }
-  },
+  }
 
-  /**
-   * Fetches the current top podcasts from Apple Charts.
-   */
-  getTrendingPodcasts: async (): Promise<Podcast[]> => {
+  async getTrending(): Promise<Podcast[]> {
     try {
-      // 1. Get IDs of top podcasts
-      const trendingUrl = 'https://itunes.apple.com/us/rss/toppodcasts/limit=12/json';
-      let data;
-      
-      try {
-        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(trendingUrl)}`;
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error("Primary proxy failed");
-        data = await response.json();
-      } catch (e) {
-        // Fallback for Step 1
-        const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(trendingUrl)}`;
-        const fbRes = await fetch(fallbackUrl);
-        const fbData = await fbRes.json();
-        data = JSON.parse(fbData.contents);
-      }
+      const trendingUrl = APP_CONFIG.providers.itunes.trendingUrl;
+      const data = await fetchWithProxy(trendingUrl, true);
 
       const entries = data.feed?.entry || [];
       const ids = entries.map((e: any) => e.id.attributes['im:id']).join(',');
       
       if (!ids) return [];
 
-      // 2. Lookup IDs to get full metadata.
-      // iTunes Lookup API usually supports CORS directly.
-      const lookupUrl = `https://itunes.apple.com/lookup?id=${ids}`;
-      let lookupResponse;
+      const lookupUrl = `${APP_CONFIG.providers.itunes.lookupUrl}?id=${ids}`;
+      const lookupData = await fetchWithProxy(lookupUrl, true);
       
-      try {
-        lookupResponse = await fetch(lookupUrl);
-      } catch (e) {
-        // If direct fetch fails (e.g. CORS block unexpectedly), try proxy
-        const lookupProxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(lookupUrl)}`;
-        lookupResponse = await fetch(lookupProxyUrl);
-      }
-      
-      if (!lookupResponse || !lookupResponse.ok) {
-        throw new Error("Metadata lookup failed across all attempts");
-      }
-      
-      const lookupData = await lookupResponse.json();
       return lookupData.results.map((item: any) => ({
         id: item.collectionId.toString(),
         title: item.collectionName,
@@ -175,57 +189,17 @@ export const rssService = {
       console.error("Trending podcasts error:", err);
       return [];
     }
-  },
+  }
+}
+
+const defaultProvider = new ItunesProvider();
+
+export const rssService = {
+  searchPodcasts: (term: string) => defaultProvider.search(term),
+  getTrendingPodcasts: () => defaultProvider.getTrending(),
 
   fetchPodcast: async (url: string): Promise<{ podcast: Podcast, episodes: Episode[] }> => {
-    const sanitizedUrl = url.trim();
-    if (!sanitizedUrl || !sanitizedUrl.startsWith('http')) {
-      throw new Error("Please enter a valid URL.");
-    }
-
-    // Attempt 1: Direct Fetch
-    try {
-      const response = await fetch(sanitizedUrl, { signal: AbortSignal.timeout(5000) });
-      if (response.ok) {
-        const text = await response.text();
-        return parseRssXml(text, sanitizedUrl);
-      }
-    } catch (e) {
-      console.log("Direct fetch failed, trying proxies...");
-    }
-
-    // Attempt 2: CORS Proxy Fallbacks
-    const proxies = [
-      { url: `https://corsproxy.io/?url=${encodeURIComponent(sanitizedUrl)}`, type: 'raw' },
-      { url: `https://api.allorigins.win/get?url=${encodeURIComponent(sanitizedUrl)}`, type: 'json' },
-      { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(sanitizedUrl)}`, type: 'raw' }
-    ];
-
-    let lastError: any = null;
-
-    for (const proxy of proxies) {
-      try {
-        const response = await fetch(proxy.url, { signal: AbortSignal.timeout(10000) });
-        if (!response.ok) continue;
-
-        if (proxy.type === 'json') {
-          const data = await response.json();
-          if (data.contents) {
-            return parseRssXml(data.contents, sanitizedUrl);
-          }
-        } else {
-          const text = await response.text();
-          if (text) return parseRssXml(text, sanitizedUrl);
-        }
-      } catch (err: any) {
-        lastError = err;
-      }
-    }
-
-    throw new Error(
-      lastError?.name === 'AbortError' 
-        ? "The request timed out."
-        : "CORS Access Denied: This podcast host blocks external players. Try another podcast."
-    );
+    const text = await fetchWithProxy(url, false);
+    return parseRssXml(text, url);
   }
 };
