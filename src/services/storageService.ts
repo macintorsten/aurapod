@@ -1,5 +1,7 @@
 
 import { Podcast, PlaybackState, Theme, Episode } from '../types';
+import { STORAGE_KEYS } from '../constants';
+import { APP_CONSTANTS } from '../constants';
 
 export interface StorageAdapter {
   getItem(key: string): string | null;
@@ -20,13 +22,6 @@ class LocalStorageAdapter implements StorageAdapter {
     localStorage.removeItem(key);
   }
 }
-
-const STORAGE_KEYS = {
-  PODCASTS: 'aurapod_podcasts',
-  HISTORY: 'aurapod_history',
-  THEME: 'aurapod_theme',
-  QUEUE: 'aurapod_queue',
-};
 
 export class StorageService {
   constructor(private storage: StorageAdapter = new LocalStorageAdapter()) {}
@@ -68,7 +63,7 @@ export class StorageService {
 
   updatePlayback(episode: Episode, podcast: Podcast | { title: string }, currentTime: number, duration: number): void {
     const history = this.getHistory();
-    const isCompleted = duration > 0 && (currentTime / duration) > 0.95;
+    const isCompleted = duration > 0 && (currentTime / duration) > APP_CONSTANTS.COMPLETION_THRESHOLD;
     
     history[episode.id] = {
       episodeId: episode.id,
