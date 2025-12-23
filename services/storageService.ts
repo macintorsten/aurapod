@@ -2,10 +2,10 @@
 import { Podcast, PlaybackState, Theme, Episode } from '../types';
 
 const STORAGE_KEYS = {
-  PODCASTS: 'novacast_podcasts',
-  HISTORY: 'novacast_history',
-  THEME: 'novacast_theme',
-  QUEUE: 'novacast_queue',
+  PODCASTS: 'aurapod_podcasts',
+  HISTORY: 'aurapod_history',
+  THEME: 'aurapod_theme',
+  QUEUE: 'aurapod_queue',
 };
 
 export const storageService = {
@@ -44,17 +44,24 @@ export const storageService = {
     localStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(queue));
   },
 
-  updatePlayback: (episodeId: string, podcastId: string, currentTime: number, duration: number) => {
+  updatePlayback: (episode: Episode, podcast: Podcast | { title: string }, currentTime: number, duration: number) => {
     const history = storageService.getHistory();
     const isCompleted = duration > 0 && (currentTime / duration) > 0.95;
     
-    history[episodeId] = {
-      episodeId,
-      podcastId,
+    history[episode.id] = {
+      episodeId: episode.id,
+      podcastId: episode.podcastId,
       currentTime,
       duration,
       lastUpdated: Date.now(),
       completed: isCompleted,
+      // Save snapshot so history is useful even if feed is gone
+      title: episode.title,
+      image: episode.image || (podcast as Podcast).image,
+      podcastTitle: podcast.title,
+      description: episode.description,
+      pubDate: episode.pubDate,
+      audioUrl: episode.audioUrl // Added for fallback playback support
     };
     
     storageService.saveHistory(history);

@@ -1,0 +1,18 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="auraGradient" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+  </defs>
+  <!-- Background with Gradient -->
+  <rect width="512" height="512" rx="128" fill="url(#auraGradient)" />
+  <!-- Microphone Icon -->
+  <g transform="translate(156, 120) scale(1.4)">
+    <path d="M72 24C72 10.7452 61.2548 0 48 0C34.7452 0 24 10.7452 24 24V72C24 85.2548 34.7452 96 48 96C61.2548 96 72 85.2548 72 72V24Z" fill="white" />
+    <path d="M48 112C69.043 112 87.773 100.864 94.755 84.156C96.151 80.817 94.545 77.019 91.206 75.623C87.867 74.227 84.069 75.833 82.673 79.172C77.525 91.492 64.301 100 48 100C31.699 100 18.475 91.492 13.327 79.172C11.931 75.833 8.133 74.227 4.794 75.623C1.455 77.019 -0.151 80.817 1.245 84.156C8.227 100.864 26.957 112 48 112Z" fill="white" />
+    <rect x="42" y="112" width="12" height="24" rx="6" fill="white" />
+    <rect x="24" y="132" width="48" height="12" rx="6" fill="white" />
+  </g>
+</svg>

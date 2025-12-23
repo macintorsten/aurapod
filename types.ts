@@ -21,6 +21,9 @@ export interface Episode {
   duration: string;
   link: string;
   image?: string;
+  // Contextual info for unified views
+  podcastTitle?: string;
+  podcastImage?: string;
 }
 
 export interface PlaybackState {
@@ -30,6 +33,13 @@ export interface PlaybackState {
   duration: number;
   lastUpdated: number;
   completed: boolean;
+  // Snapshot data for history persistence
+  title?: string;
+  image?: string;
+  podcastTitle?: string;
+  description?: string;
+  pubDate?: string;
+  audioUrl?: string; // Critical for playing from history if podcast is unsubscribed
 }
 
 export interface AppState {

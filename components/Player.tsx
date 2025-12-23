@@ -1,7 +1,8 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Episode, Podcast } from '../types';
 import { storageService } from '../services/storageService';
+import EpisodeItem from './EpisodeItem';
 
 interface PlayerProps {
   episode: Episode;
@@ -12,6 +13,7 @@ interface PlayerProps {
   onClearQueue: () => void;
   onClose: () => void;
   onShare: () => void;
+  onProgress?: () => void; // Added for state sync
 }
 
 const SPEEDS = [0.5, 0.8, 1, 1.2, 1.5, 1.7, 2];
@@ -24,7 +26,8 @@ const Player: React.FC<PlayerProps> = ({
   onRemoveFromQueue, 
   onClearQueue, 
   onClose, 
-  onShare 
+  onShare,
+  onProgress
 }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,20 +36,66 @@ const Player: React.FC<PlayerProps> = ({
   const [volume, setVolume] = useState(1);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showQueue, setShowQueue] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const saveProgress = useCallback(() => {
+    if (audioRef.current && !error && audioRef.current.currentTime > 0.1) {
+      storageService.updatePlayback(
+        episode, 
+        podcast, 
+        audioRef.current.currentTime, 
+        audioRef.current.duration
+      );
+      if (onProgress) onProgress();
+    }
+  }, [episode, podcast, error, onProgress]);
 
   useEffect(() => {
+    setError(null);
+    if (!episode.audioUrl) {
+      setError("No audio source found for this wave.");
+      setIsPlaying(false);
+      return;
+    }
+
     const history = storageService.getHistory();
     const state = history[episode.id];
     
     if (audioRef.current) {
+      audioRef.current.pause(); 
       if (state && !state.completed) {
         audioRef.current.currentTime = state.currentTime;
+      } else {
+        audioRef.current.currentTime = 0;
       }
+      
       audioRef.current.playbackRate = playbackRate;
-      audioRef.current.play().catch(() => setIsPlaying(false));
-      setIsPlaying(true);
+      audioRef.current.load();
+      
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsPlaying(true);
+            // Initial save to register in history immediately
+            setTimeout(saveProgress, 1000);
+          })
+          .catch((err) => {
+            console.warn("Playback prevented or failed:", err);
+            setIsPlaying(false);
+          });
+      }
     }
-  }, [episode.id]);
+  }, [episode.id, episode.audioUrl, saveProgress]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPlaying) {
+        saveProgress();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isPlaying, saveProgress]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -57,25 +106,15 @@ const Player: React.FC<PlayerProps> = ({
     }
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (audioRef.current && isPlaying) {
-        storageService.updatePlayback(
-          episode.id, 
-          podcast.id, 
-          audioRef.current.currentTime, 
-          audioRef.current.duration
-        );
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [isPlaying, episode.id, podcast.id]);
-
   const togglePlay = () => {
     if (audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else audioRef.current.play();
-      setIsPlaying(!isPlaying);
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+        saveProgress(); 
+      } else {
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      }
     }
   };
 
@@ -94,6 +133,7 @@ const Player: React.FC<PlayerProps> = ({
     if (audioRef.current) {
       audioRef.current.currentTime = val;
       setCurrentTime(val);
+      saveProgress(); 
     }
   };
 
@@ -111,37 +151,38 @@ const Player: React.FC<PlayerProps> = ({
     <div className="fixed bottom-0 left-0 right-0 z-50">
       {/* Queue Drawer */}
       {showQueue && (
-        <div className="absolute bottom-full right-0 w-full md:w-80 max-h-[60vh] overflow-y-auto bg-white dark:bg-zinc-900 border-x border-t border-zinc-200 dark:border-zinc-800 rounded-t-3xl shadow-2xl animate-fade-in p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h5 className="font-bold text-zinc-900 dark:text-white">Up Next</h5>
-            <div className="flex items-center gap-3">
-              <button onClick={onClearQueue} className="text-[10px] font-bold text-red-500 hover:opacity-80 transition">CLEAR ALL</button>
-              <button onClick={() => setShowQueue(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition">
-                <i className="fa-solid fa-chevron-down"></i>
+        <div className="absolute bottom-full right-4 w-[calc(100%-2rem)] md:w-[400px] max-h-[70vh] overflow-hidden bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-t-[2.5rem] shadow-2xl animate-fade-in flex flex-col">
+          <div className="p-8 border-b border-zinc-100 dark:border-zinc-900 flex items-center justify-between">
+            <div>
+              <h5 className="font-extrabold text-xl text-zinc-900 dark:text-white tracking-tight">Up Next</h5>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">{queue.length} Episodes in Waves</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <button onClick={onClearQueue} className="text-[10px] font-bold text-red-500 hover:text-red-600 transition tracking-widest">CLEAR ALL</button>
+              <button onClick={() => setShowQueue(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition">
+                <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
           </div>
           
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {queue.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic text-center py-8">Your queue is empty.</p>
+              <div className="text-center py-20 space-y-4">
+                <div className="w-16 h-16 bg-zinc-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto text-zinc-200">
+                  <i className="fa-solid fa-layer-group text-2xl"></i>
+                </div>
+                <p className="text-xs text-zinc-500 italic">Your queue is currently empty.</p>
+              </div>
             ) : (
               queue.map((item, idx) => (
-                <div key={item.id + idx} className="flex items-center gap-3 group">
-                  <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-lg shrink-0 overflow-hidden">
-                    {item.image && <img src={item.image} className="w-full h-full object-cover" alt="" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{item.title}</p>
-                    <p className="text-[10px] text-zinc-500 truncate">{item.duration}</p>
-                  </div>
-                  <button 
-                    onClick={() => onRemoveFromQueue(item.id)}
-                    className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition p-2"
-                  >
-                    <i className="fa-solid fa-xmark text-xs"></i>
-                  </button>
-                </div>
+                <EpisodeItem 
+                  key={item.id + idx}
+                  episode={item}
+                  progress={0}
+                  isQueue
+                  onPlay={() => {}} 
+                  onRemove={() => onRemoveFromQueue(item.id)}
+                />
               ))
             )}
           </div>
@@ -149,10 +190,9 @@ const Player: React.FC<PlayerProps> = ({
       )}
 
       {/* Main Player Bar */}
-      <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl border-t border-zinc-200 dark:border-zinc-800/50 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-2xl">
+      <div className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-200 dark:border-zinc-800/50 p-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]">
         <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row items-center gap-4 lg:gap-8">
           
-          {/* Info Section */}
           <div className="flex items-center gap-4 flex-1 min-w-0 w-full md:w-auto">
             <div className="relative group shrink-0">
               <img src={episode.image || podcast.image} alt="" className="w-14 h-14 rounded-xl shadow-lg object-cover border border-zinc-100 dark:border-zinc-700/50" />
@@ -160,10 +200,10 @@ const Player: React.FC<PlayerProps> = ({
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-bold truncate text-zinc-900 dark:text-zinc-100 leading-tight mb-0.5">{episode.title}</h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-medium">{podcast.title}</p>
+              {error && <p className="text-[10px] text-red-500 font-bold animate-pulse">{error}</p>}
             </div>
           </div>
 
-          {/* Playback Controls & Progress Bar */}
           <div className="flex flex-col items-center gap-2 flex-[2] w-full max-w-2xl">
             <div className="flex items-center gap-8 mb-1">
               <button 
@@ -175,7 +215,8 @@ const Player: React.FC<PlayerProps> = ({
               </button>
               <button 
                 onClick={togglePlay} 
-                className="w-12 h-12 rounded-full bg-zinc-900 dark:bg-zinc-100 hover:opacity-90 dark:hover:bg-white text-white dark:text-zinc-950 flex items-center justify-center transition-all shadow-xl hover:scale-105 active:scale-95"
+                className={`w-12 h-12 rounded-full bg-zinc-900 dark:bg-zinc-100 hover:opacity-90 dark:hover:bg-white text-white dark:text-zinc-950 flex items-center justify-center transition-all shadow-xl hover:scale-105 active:scale-95 ${error ? 'opacity-20 cursor-not-allowed' : ''}`}
+                disabled={!!error}
               >
                 <i className={`fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'} text-lg ${!isPlaying && 'ml-1'}`}></i>
               </button>
@@ -217,6 +258,7 @@ const Player: React.FC<PlayerProps> = ({
                   value={currentTime}
                   onChange={handleSeek}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  disabled={!!error}
                 />
               </div>
 
@@ -226,11 +268,10 @@ const Player: React.FC<PlayerProps> = ({
             </div>
           </div>
 
-          {/* Volume & Extras Section */}
           <div className="hidden lg:flex items-center gap-4 flex-1 justify-end">
             <button 
               onClick={() => setShowQueue(!showQueue)}
-              className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${showQueue ? 'bg-indigo-600 text-white' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500'}`}
+              className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${showQueue ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500'}`}
               title="Queue"
             >
               <i className="fa-solid fa-list-ul"></i>
@@ -238,7 +279,7 @@ const Player: React.FC<PlayerProps> = ({
 
             <button 
               onClick={onShare}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
               title="Share Current Track"
             >
               <i className="fa-solid fa-share-nodes"></i>
@@ -284,14 +325,13 @@ const Player: React.FC<PlayerProps> = ({
             
             <button 
               onClick={onClose} 
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all"
+              className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-all"
               title="Close Player"
             >
               <i className="fa-solid fa-xmark text-lg"></i>
             </button>
           </div>
 
-          {/* Mobile Extras Row */}
           <div className="flex lg:hidden items-center justify-between w-full mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/50">
             <div className="flex gap-4">
               <button 
@@ -316,11 +356,15 @@ const Player: React.FC<PlayerProps> = ({
 
       <audio 
         ref={audioRef} 
-        src={episode.audioUrl} 
-        onEnded={onNext} 
+        src={episode.audioUrl || ''} 
+        onEnded={() => {
+          saveProgress(); 
+          onNext();
+        }} 
         onPlay={() => { if(audioRef.current) audioRef.current.playbackRate = playbackRate; }}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleTimeUpdate}
+        onError={() => setError("Frequency interruption: Source not suitable.")}
       />
     </div>
   );

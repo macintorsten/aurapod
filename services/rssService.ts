@@ -120,29 +120,49 @@ export const rssService = {
 
   /**
    * Fetches the current top podcasts from Apple Charts.
-   * Fixed by using a CORS proxy.
    */
   getTrendingPodcasts: async (): Promise<Podcast[]> => {
     try {
-      // 1. Get IDs of top podcasts using a proxy
+      // 1. Get IDs of top podcasts
       const trendingUrl = 'https://itunes.apple.com/us/rss/toppodcasts/limit=12/json';
-      const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(trendingUrl)}`;
+      let data;
       
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Failed to fetch trending chart");
-      const data = await response.json();
+      try {
+        const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(trendingUrl)}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error("Primary proxy failed");
+        data = await response.json();
+      } catch (e) {
+        // Fallback for Step 1
+        const fallbackUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(trendingUrl)}`;
+        const fbRes = await fetch(fallbackUrl);
+        const fbData = await fbRes.json();
+        data = JSON.parse(fbData.contents);
+      }
+
       const entries = data.feed?.entry || [];
       const ids = entries.map((e: any) => e.id.attributes['im:id']).join(',');
       
       if (!ids) return [];
 
-      // 2. Lookup IDs to get full metadata including RSS feedUrl using a proxy
+      // 2. Lookup IDs to get full metadata.
+      // iTunes Lookup API usually supports CORS directly.
       const lookupUrl = `https://itunes.apple.com/lookup?id=${ids}`;
-      const lookupProxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(lookupUrl)}`;
-      const lookupResponse = await fetch(lookupProxyUrl);
-      if (!lookupResponse.ok) throw new Error("Failed to lookup podcast metadata");
-      const lookupData = await lookupResponse.json();
+      let lookupResponse;
       
+      try {
+        lookupResponse = await fetch(lookupUrl);
+      } catch (e) {
+        // If direct fetch fails (e.g. CORS block unexpectedly), try proxy
+        const lookupProxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(lookupUrl)}`;
+        lookupResponse = await fetch(lookupProxyUrl);
+      }
+      
+      if (!lookupResponse || !lookupResponse.ok) {
+        throw new Error("Metadata lookup failed across all attempts");
+      }
+      
+      const lookupData = await lookupResponse.json();
       return lookupData.results.map((item: any) => ({
         id: item.collectionId.toString(),
         title: item.collectionName,
