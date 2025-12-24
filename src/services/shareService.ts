@@ -118,7 +118,7 @@ export const shareService = {
     // Special handling for track wave-source mode - link to podcast page with episode
     if (data.shareType === 'track' && data.shareMode === 'wave-source' && data.p && data.e) {
       // Construct podcast/episode URL with hash routing
-      const episodeUrl = `${baseUrl}/#/podcast/${encodeURIComponent(data.p)}/${encodeURIComponent(data.e)}`;
+      const episodeUrl = `${baseUrl}/#/podcast/${encodeURIComponent(data.p)}/episode/${encodeURIComponent(data.e)}`;
       
       return {
         url: episodeUrl,

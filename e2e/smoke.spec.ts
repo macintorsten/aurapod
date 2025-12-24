@@ -14,6 +14,9 @@ test.describe('AuraPod - Smoke Tests', () => {
   test('should display search input', async ({ page }) => {
     await page.goto('/');
     
+    // Wait for page to be fully loaded
+    await page.waitForLoadState('networkidle');
+    
     const searchInput = page.getByRole('textbox', { name: /Explore/i });
     await expect(searchInput).toBeVisible();
     await expect(searchInput).toBeEditable();
