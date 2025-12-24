@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import { MainLayout } from "../Layout/MainLayout";
 import Player from "../Player";
 import { Podcast, Episode, Theme } from "../../types";
@@ -63,7 +63,7 @@ const mockVersion = {
 describe("Layout with Player Integration", () => {
   it("should keep sidebar theme controls visible when player is rendered", () => {
     const { container } = render(
-      <BrowserRouter>
+      <HashRouter>
         <div className="h-screen flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <MainLayout
@@ -93,7 +93,7 @@ describe("Layout with Player Integration", () => {
             autoPlay={false}
           />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     // Find the player
@@ -144,7 +144,7 @@ describe("Layout with Player Integration", () => {
 
   it("should have proper layout structure with player below main content", () => {
     const { container } = render(
-      <BrowserRouter>
+      <HashRouter>
         <div className="h-screen flex flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <MainLayout
@@ -174,7 +174,7 @@ describe("Layout with Player Integration", () => {
             autoPlay={false}
           />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     const sidebar = container.querySelector("aside");
@@ -192,7 +192,7 @@ describe("Layout with Player Integration", () => {
 
   it("should position player and layout in a flex column container", () => {
     const { container } = render(
-      <BrowserRouter>
+      <HashRouter>
         <div className="h-screen flex flex-col overflow-hidden" data-testid="app-container">
           <div className="flex-1 overflow-hidden" data-testid="layout-wrapper">
             <MainLayout
@@ -222,7 +222,7 @@ describe("Layout with Player Integration", () => {
             autoPlay={false}
           />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     // Verify the container structure

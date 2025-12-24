@@ -4,6 +4,7 @@ import { Theme } from './types';
 export interface AppConfig {
   appName: string;
   defaultTheme: Theme;
+  baseUrl?: string; // Override base URL for share links (defaults to auto-detection)
   proxyUrls: string[];
   providers: {
     itunes: {
@@ -31,6 +32,7 @@ export interface AppConfig {
 export const APP_CONFIG: AppConfig = {
   appName: "AuraPod",
   defaultTheme: "dark",
+  // baseUrl: "https://example.com/subfolder", // Optional: override auto-detected base URL
   proxyUrls: [
     "https://api.allorigins.win/get?url=",
     "https://corsproxy.io/?url=",

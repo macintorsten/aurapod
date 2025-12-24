@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import { MainLayout } from "../MainLayout";
 import { Podcast, Theme } from "../../../types";
 
@@ -37,11 +37,11 @@ const defaultProps = {
 describe("MainLayout", () => {
   it("should render the layout", () => {
     render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     expect(screen.getByText("Test Content")).toBeInTheDocument();
@@ -49,11 +49,11 @@ describe("MainLayout", () => {
 
   it("should display app name in sidebar", () => {
     render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     expect(screen.getByText("AuraPod")).toBeInTheDocument();
@@ -61,11 +61,11 @@ describe("MainLayout", () => {
 
   it("should display theme controls in sidebar", () => {
     render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     // Check for theme control buttons (sun, moon, desktop icons)
@@ -81,11 +81,11 @@ describe("MainLayout", () => {
 
   it("should display version codename at the bottom of sidebar", () => {
     render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     const codenameElement = screen.getByText(/aurora/i);
@@ -94,11 +94,11 @@ describe("MainLayout", () => {
 
   it("should ensure sidebar bottom elements are not obscured when rendered", () => {
     const { container } = render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     // Find the sidebar
@@ -129,11 +129,11 @@ describe("MainLayout", () => {
 
   it("should have sidebar bottom section with adequate padding when player might be present", () => {
     const { container } = render(
-      <BrowserRouter>
+      <HashRouter>
         <MainLayout {...defaultProps}>
           <div>Test Content</div>
         </MainLayout>
-      </BrowserRouter>
+      </HashRouter>
     );
 
     // Find the sidebar's bottom section (the theme controls area)

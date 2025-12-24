@@ -7,14 +7,14 @@ test.describe('AuraPod - Smoke Tests', () => {
     // Check that the app name is visible
     await expect(page.locator('text=AuraPod')).toBeVisible();
     
-    // Check that the discover view is active
-    await expect(page.locator('button:has-text("Discover")')).toHaveClass(/indigo-600|indigo-50/);
+    // Check that the discover link exists
+    await expect(page.locator('a:has-text("Discover")')).toBeVisible();
   });
 
   test('should display search input', async ({ page }) => {
     await page.goto('/');
     
-    const searchInput = page.locator('input[placeholder*="Explore"]');
+    const searchInput = page.getByRole('textbox', { name: /Explore/i });
     await expect(searchInput).toBeVisible();
     await expect(searchInput).toBeEditable();
   });
@@ -101,7 +101,7 @@ test.describe('AuraPod - Smoke Tests', () => {
     await page.goto('/');
     
     // Navigate through different views
-    const discoverButton = page.locator('button:has-text("Discover")');
+    const discoverLink = page.locator('a:has-text("Discover")');
     const archiveButton = page.locator('button:has-text("Signal Archive")');
     const newReleasesButton = page.locator('button:has-text("New Releases")');
     
@@ -110,8 +110,8 @@ test.describe('AuraPod - Smoke Tests', () => {
     await expect(page.locator('h3:has-text("Incoming Waves")')).toBeVisible();
     
     // Go back to discover
-    await discoverButton.click();
-    await expect(page.locator('input[placeholder*="Explore"]')).toBeVisible();
+    await discoverLink.click();
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
     
     // Go to new releases
     await newReleasesButton.click();

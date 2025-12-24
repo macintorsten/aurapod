@@ -132,9 +132,11 @@ export function AppProvider({ children }: AppProviderProps) {
       setActivePodcast(podcast);
 
       try {
-        const { episodes: fetchedEpisodes } = await rssService.fetchPodcast(
+        const { podcast: fetchedPodcast, episodes: fetchedEpisodes } = await rssService.fetchPodcast(
           podcast.feedUrl
         );
+        // Update with the actual podcast data from the feed
+        setActivePodcast(fetchedPodcast);
         setEpisodes(fetchedEpisodes);
       } catch (err) {
         addError("feed", `Failed to load podcast: ${podcast.title}`, err, {

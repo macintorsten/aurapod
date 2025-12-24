@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Podcast, Episode, PlaybackState } from "./types";
 import { rssService } from "./services/rssService";
 import { shareService, SharedData } from "./services/shareService";
@@ -52,7 +52,11 @@ const AppContent: React.FC = () => {
     version,
   } = useUIContext();
 
-  const [shareData, setShareData] = useState<SharedData | null>(null);
+  const [shareModalData, setShareModalData] = useState<{
+    shareType: 'track' | 'rss';
+    podcast?: Podcast;
+    episode?: Episode;
+  } | null>(null);
   const [suggestedPodcasts, setSuggestedPodcasts] = useState<Podcast[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
 
@@ -76,16 +80,25 @@ const AppContent: React.FC = () => {
 
   // Handle URL share data on mount
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const sharedPayload = urlParams.get("s") || urlParams.get("d"); // Support both ?s= and legacy ?d=
-    if (sharedPayload) {
-      try {
-        const data = shareService.decode(sharedPayload);
-        if (data) {
-          handleImportDirect(data);
+    // With hash routing, query params are in the hash fragment
+    // Format: baseUrl/#/?s=encodedData
+    const hash = window.location.hash;
+    const queryStart = hash.indexOf('?');
+    
+    if (queryStart !== -1) {
+      const queryString = hash.substring(queryStart + 1);
+      const urlParams = new URLSearchParams(queryString);
+      const sharedPayload = urlParams.get("s") || urlParams.get("d"); // Support both ?s= and legacy ?d=
+      
+      if (sharedPayload) {
+        try {
+          const data = shareService.decode(sharedPayload);
+          if (data) {
+            handleImportDirect(data);
+          }
+        } catch (e) {
+          console.error("Failed to parse shared data:", e);
         }
-      } catch (e) {
-        console.error("Failed to parse shared data:", e);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,6 +106,55 @@ const AppContent: React.FC = () => {
 
   const handleImportDirect = useCallback(
     async (data: SharedData) => {
+      // Handle RSS manifest mode (sharing multiple episodes)
+      if (data.shareMode === 'full-manifest' && data.episodes && data.episodes.length > 0) {
+        const podcastId = data.p
+          ? btoa(data.p).substring(0, 16)
+          : APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX;
+        
+        const standalonePodcast: Podcast = {
+          id: podcastId,
+          title: data.pt || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
+          image: data.pi || "",
+          feedUrl: data.p || "",
+          author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
+          description: data.pd || "",
+        };
+
+        await loadPodcast(standalonePodcast);
+        
+        // Optionally auto-play the first episode
+        const firstEpisode: Episode = {
+          id: data.episodes[0].id,
+          podcastId: podcastId,
+          title: data.episodes[0].title,
+          image: data.episodes[0].image || data.pi,
+          description: data.episodes[0].description || "",
+          audioUrl: data.episodes[0].audioUrl,
+          duration: data.episodes[0].duration || "Shared",
+          pubDate: data.episodes[0].pubDate || "",
+          link: "",
+          podcastTitle: data.pt,
+        };
+        setCurrentEpisode(firstEpisode);
+        setPlayerAutoplay(false);
+        
+        return;
+      }
+      
+      // Handle RSS frequency mode or wave-source mode
+      if (data.p && !data.t) {
+        // Just RSS URL, subscribe to it
+        try {
+          const { podcast } = await rssService.fetchPodcast(data.p);
+          await loadPodcast(podcast);
+        } catch (e) {
+          console.error("Failed to load RSS feed:", e);
+        }
+        return;
+      }
+      
+      // Handle single track (embedded-payload or wave-source)
       if (data.t && data.u) {
         const podcastId = data.p
           ? btoa(data.p).substring(0, 16)
@@ -209,16 +271,20 @@ const AppContent: React.FC = () => {
         episodes.find((e) => e.id === episodeId) ||
         (currentEpisode?.id === episodeId ? currentEpisode : null);
 
-      const data: SharedData = { p: podcastUrl, e: episodeId };
-      if (ep) {
-        data.t = ep.title;
-        data.u = ep.audioUrl;
-        data.i = ep.image;
-        data.d = shareService.sanitizeDescription(ep.description);
-        data.st = pod?.title;
-        data.si = pod?.image;
+      if (episodeId && ep) {
+        // Sharing a track
+        setShareModalData({
+          shareType: 'track',
+          podcast: pod || undefined,
+          episode: ep,
+        });
+      } else {
+        // Sharing RSS feed only
+        setShareModalData({
+          shareType: 'rss',
+          podcast: pod || undefined,
+        });
       }
-      setShareData(data);
     },
     [podcasts, activePodcast, episodes, currentEpisode]
   );
@@ -359,8 +425,13 @@ const AppContent: React.FC = () => {
         />
       )}
 
-      {shareData && (
-        <ShareModal data={shareData} onClose={() => setShareData(null)} />
+      {shareModalData && (
+        <ShareModal
+          shareType={shareModalData.shareType}
+          podcast={shareModalData.podcast}
+          episode={shareModalData.episode}
+          onClose={() => setShareModalData(null)}
+        />
       )}
         </MainLayout>
       </div>
@@ -388,7 +459,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppProvider>
         <PlayerProvider>
           <UIProvider>
@@ -396,7 +467,7 @@ const App: React.FC = () => {
           </UIProvider>
         </PlayerProvider>
       </AppProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 

@@ -33,7 +33,7 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
     episodeId?: string;
   }>();
   const navigate = useNavigate();
-  const { activePodcast, loadPodcast, loading } = useAppContext();
+  const { activePodcast, podcasts, loadPodcast, loading } = useAppContext();
   const { setCurrentEpisode, setPlayerAutoplay } = usePlayerContext();
 
   // Load podcast when feedUrl changes
@@ -44,18 +44,24 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
     
     // Only load if we don't have this podcast loaded or if URL changed
     if (!activePodcast || activePodcast.feedUrl !== feedUrl) {
-      // Find podcast from subscriptions or create a minimal one
-      const podcast: Podcast = {
-        id: btoa(feedUrl).substring(0, 16),
-        title: "Loading...",
-        feedUrl,
-        image: "",
-        author: "",
-        description: "",
-      };
-      loadPodcast(podcast);
+      // Check if we already have this podcast in subscriptions
+      const existingPodcast = podcasts.find(p => p.feedUrl === feedUrl);
+      if (existingPodcast) {
+        loadPodcast(existingPodcast);
+      } else {
+        // Create a minimal podcast object to trigger loading
+        const podcast: Podcast = {
+          id: btoa(feedUrl).substring(0, 16),
+          title: "",
+          feedUrl,
+          image: "",
+          author: "",
+          description: "",
+        };
+        loadPodcast(podcast);
+      }
     }
-  }, [encodedFeedUrl, activePodcast, loadPodcast]);
+  }, [encodedFeedUrl, activePodcast, podcasts, loadPodcast]);
 
   // Handle episodeId param - select episode without auto-play
   useEffect(() => {
