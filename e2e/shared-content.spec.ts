@@ -33,7 +33,7 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     await expect(page.locator('h3:has-text("Test Shared Podcast")')).toBeVisible();
 
     // Should display the shared episode in the episode list
-    await expect(page.locator('text=Test Shared Episode')).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Test Shared Episode' })).toBeVisible();
 
     // Should NOT show subscribe button for virtual podcast
     await expect(page.locator('button:has-text("SUBSCRIBE")')).not.toBeVisible();
@@ -119,8 +119,9 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     // Click play button
     await playButton.click();
 
-    // Player should now be visible with the episode
-    await expect(page.locator('text=Playable Shared Episode')).toBeVisible();
+    // Player should now be visible with the episode (check in player area)
+    const playerHeading = page.locator('text=Playable Shared Episode').last();
+    await expect(playerHeading).toBeVisible();
   });
 
   test('should handle invalid shared data gracefully', async ({ page }) => {

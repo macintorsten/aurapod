@@ -116,8 +116,8 @@ const AppContent: React.FC = () => {
         // Load virtual podcast and navigate to it
         loadVirtualPodcast(virtualPodcast, virtualEpisodes);
         
-        // Navigate to virtual podcast detail view
-        navigate(`/shared/${podcastId}`);
+        // Navigate to virtual podcast detail view (replace to clear ?s= param)
+        navigate(`/shared/${podcastId}`, { replace: true });
         
         return;
       }
@@ -125,7 +125,7 @@ const AppContent: React.FC = () => {
       // Handle RSS frequency mode or wave-source mode
       if (data.p && !data.t) {
         // Just RSS URL, load it normally via existing route
-        navigate(`/podcast/${encodeURIComponent(data.p)}`);
+        navigate(`/podcast/${encodeURIComponent(data.p)}`, { replace: true });
         return;
       }
       
@@ -158,8 +158,8 @@ const AppContent: React.FC = () => {
         // Load as a virtual podcast with single episode
         loadVirtualPodcast(virtualPodcast, [virtualEpisode]);
         
-        // Navigate to virtual podcast detail view
-        navigate(`/shared/${podcastId}`);
+        // Navigate to virtual podcast detail view (replace to clear ?s= param)
+        navigate(`/shared/${podcastId}`, { replace: true });
       }
     },
     [loadVirtualPodcast, navigate]
