@@ -28,16 +28,20 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
   onSubscribe,
   isSubscribed,
 }) => {
-  const { feedUrl: encodedFeedUrl, episodeId: encodedEpisodeId } = useParams<{
-    feedUrl: string;
+  const { feedUrl: encodedFeedUrl, episodeId: encodedEpisodeId, podcastId } = useParams<{
+    feedUrl?: string;
     episodeId?: string;
+    podcastId?: string;
   }>();
   const navigate = useNavigate();
   const { activePodcast, podcasts, loadPodcast, loading } = useAppContext();
   const { setCurrentEpisode, setPlayerAutoplay } = usePlayerContext();
 
-  // Load podcast when feedUrl changes
+  // Load podcast when feedUrl changes (skip for shared/virtual podcasts)
   useEffect(() => {
+    // If this is a shared podcast route (/shared/:podcastId), skip loading
+    if (podcastId) return;
+    
     if (!encodedFeedUrl) return;
 
     const feedUrl = decodeFeedUrl(encodedFeedUrl);
@@ -61,7 +65,7 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
         loadPodcast(podcast);
       }
     }
-  }, [encodedFeedUrl, activePodcast, podcasts, loadPodcast]);
+  }, [encodedFeedUrl, podcastId, activePodcast, podcasts, loadPodcast]);
 
   // Handle episodeId param - select episode without auto-play
   useEffect(() => {
@@ -76,7 +80,13 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
     }
   }, [encodedEpisodeId, episodes, currentEpisode, setCurrentEpisode, setPlayerAutoplay]);
 
-  if (loading || !activePodcast) {
+  // For shared podcasts, don't show loading if we have the data
+  const isSharedPodcast = !!podcastId;
+  if (!isSharedPodcast && (loading || !activePodcast)) {
+    return <LoadingView message="Tuning Signal..." />;
+  }
+  
+  if (!activePodcast) {
     return <LoadingView message="Tuning Signal..." />;
   }
 
@@ -100,7 +110,7 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
         <div className="space-y-6 flex-1 pt-2">
           <div className="flex items-center justify-between">
             <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">
-              Broadcast Verified
+              {isSharedPodcast ? "Shared Content" : "Broadcast Verified"}
             </span>
             <button
               onClick={() => onShare(podcast.feedUrl)}
@@ -117,7 +127,7 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
             className="text-zinc-500 text-sm max-w-3xl leading-relaxed prose dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: podcast.description }}
           ></p>
-          {!isSubscribed(podcast.feedUrl) && (
+          {!isSharedPodcast && !isSubscribed(podcast.feedUrl) && (
             <button
               onClick={() => onSubscribe(podcast)}
               className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-bold shadow-xl hover:bg-indigo-700 transition"

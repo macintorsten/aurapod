@@ -140,44 +140,44 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         className="bg-white dark:bg-zinc-950 w-full max-w-2xl rounded-[3rem] p-12 shadow-2xl animate-fade-in flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header with close button - more compact */}
-        <div className="flex items-center justify-between mb-6 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 aura-logo rounded-xl flex items-center justify-center text-white">
-              <i className="fa-solid fa-share-nodes text-sm"></i>
+        {/* Header with close button */}
+        <div className="flex items-center justify-between mb-8 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 aura-logo rounded-xl flex items-center justify-center text-white">
+              <i className="fa-solid fa-share-nodes text-lg"></i>
             </div>
             <div>
-              <h3 className="text-xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+              <h3 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
                 {shareType === 'track' ? 'Wave' : 'Frequency'} <span className="text-indigo-500">Broadcast</span>
               </h3>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-white transition"
+            className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-900 rounded-full text-zinc-400 hover:text-white transition"
           >
-            <i className="fa-solid fa-xmark text-sm"></i>
+            <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
           {/* Episode preview with mode badge */}
-          <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-4">
-            <div className="flex items-start gap-3">
+          <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-6">
+            <div className="flex items-start gap-4">
               {displayImage && (
                 <img
                   src={displayImage}
-                  className="w-12 h-12 rounded-lg object-cover"
+                  className="w-16 h-16 rounded-lg object-cover"
                   alt=""
                 />
               )}
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="text-base font-bold text-zinc-900 dark:text-white truncate">
                     {displayTitle}
                   </p>
                   {/* Mode badge */}
-                  <span className={`shrink-0 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wide ${
+                  <span className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide ${
                     shareMode === 'wave-source' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
                     shareMode === 'embedded-payload' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' :
                     shareMode === 'frequency' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
@@ -189,80 +189,80 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                      '📋 Full'}
                   </span>
                 </div>
-                <p className="text-[10px] text-indigo-500 font-semibold">
+                <p className="text-xs text-indigo-500 font-semibold">
                   {displaySubtitle}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Transmission mode buttons - separate and compact */}
+          {/* Transmission mode buttons */}
           {shareType === 'track' ? (
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShareMode('wave-source')}
                 disabled={!podcast?.feedUrl}
-                className={`flex-1 p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
+                className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
                   shareMode === 'wave-source'
                     ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-300'
                 } ${!podcast?.feedUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <i className="fa-solid fa-rss text-xs"></i>
-                <span className="text-[11px] font-semibold">RSS Source</span>
+                <i className="fa-solid fa-rss text-sm"></i>
+                <span className="text-sm font-semibold">RSS Source</span>
               </button>
               
               <button
                 onClick={() => setShareMode('embedded-payload')}
-                className={`flex-1 p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
+                className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
                   shareMode === 'embedded-payload'
                     ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-purple-300'
                 }`}
               >
-                <i className="fa-solid fa-cube text-xs"></i>
-                <span className="text-[11px] font-semibold">Embedded</span>
+                <i className="fa-solid fa-cube text-sm"></i>
+                <span className="text-sm font-semibold">Embedded</span>
               </button>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShareMode('frequency')}
-                className={`flex-1 p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
+                className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
                   shareMode === 'frequency'
                     ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-300'
                 }`}
               >
-                <i className="fa-solid fa-signal text-xs"></i>
-                <span className="text-[11px] font-semibold">Frequency</span>
+                <i className="fa-solid fa-signal text-sm"></i>
+                <span className="text-sm font-semibold">Frequency</span>
               </button>
               
               <button
                 onClick={() => setShareMode('full-manifest')}
-                className={`flex-1 p-2.5 rounded-xl border transition flex items-center justify-center gap-2 ${
+                className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
                   shareMode === 'full-manifest'
                     ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-purple-300'
                 }`}
               >
-                <i className="fa-solid fa-list-check text-xs"></i>
-                <span className="text-[11px] font-semibold">Full Manifest</span>
+                <i className="fa-solid fa-list-check text-sm"></i>
+                <span className="text-sm font-semibold">Full Manifest</span>
               </button>
             </div>
           )}
 
           {/* RSS Manifest Options */}
           {shareType === 'rss' && shareMode === 'full-manifest' && (
-            <div className="space-y-2.5 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-4 border border-zinc-100 dark:border-zinc-800">
+            <div className="space-y-4 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-6 border border-zinc-100 dark:border-zinc-800">
               {/* Episode Count & Loading in one row */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">
                       Episodes
                     </label>
-                    <span className="text-xs font-mono text-indigo-500 font-bold">
+                    <span className="text-sm font-mono text-indigo-500 font-bold">
                       {episodeCount}
                     </span>
                   </div>
@@ -276,15 +276,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   />
                 </div>
                 {isLoadingRss && (
-                  <i className="fa-solid fa-spinner fa-spin text-indigo-500 text-sm"></i>
+                  <i className="fa-solid fa-spinner fa-spin text-indigo-500"></i>
                 )}
               </div>
 
               {/* Field Toggles - Horizontal with icons */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 mr-1">Include:</span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mr-1">Include:</span>
                 <label 
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
                     filters.includeDescriptions 
                       ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
                       : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
@@ -297,12 +297,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     onChange={() => handleFilterChange('includeDescriptions')}
                     className="hidden"
                   />
-                  <i className="fa-solid fa-align-left text-[10px]"></i>
-                  <span className="text-[10px] font-medium">Desc</span>
+                  <i className="fa-solid fa-align-left text-xs"></i>
+                  <span className="text-xs font-medium">Desc</span>
                 </label>
                 
                 <label 
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
                     filters.includeImages 
                       ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
                       : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
@@ -315,12 +315,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     onChange={() => handleFilterChange('includeImages')}
                     className="hidden"
                   />
-                  <i className="fa-solid fa-image text-[10px]"></i>
-                  <span className="text-[10px] font-medium">Img</span>
+                  <i className="fa-solid fa-image text-xs"></i>
+                  <span className="text-xs font-medium">Img</span>
                 </label>
                 
                 <label 
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg cursor-pointer transition ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
                     filters.includeDatesAndDurations 
                       ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
                       : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
@@ -333,21 +333,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     onChange={() => handleFilterChange('includeDatesAndDurations')}
                     className="hidden"
                   />
-                  <i className="fa-solid fa-clock text-[10px]"></i>
-                  <span className="text-[10px] font-medium">Time</span>
+                  <i className="fa-solid fa-clock text-xs"></i>
+                  <span className="text-xs font-medium">Time</span>
                 </label>
               </div>
             </div>
           )}
 
           {/* URL Preview */}
-          <div className="space-y-2">
-            <div className="bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/50 rounded-xl py-3 px-4 text-[10px] font-mono text-zinc-500 dark:text-zinc-400 break-all leading-relaxed max-h-32 overflow-y-auto">
+          <div className="space-y-3">
+            <div className="bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-700/50 rounded-xl py-4 px-5 text-xs font-mono text-zinc-500 dark:text-zinc-400 break-all leading-relaxed max-h-32 overflow-y-auto">
               {url}
             </div>
             
             {/* Unified size display with warning */}
-            <div className="flex items-center justify-between text-[10px] px-1">
+            <div className="flex items-center justify-between text-xs px-1">
               <span className="text-zinc-500 dark:text-zinc-400">
                 {length.toLocaleString()} bytes
                 {payloadLength > 0 && payloadLength !== length && (
@@ -355,19 +355,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 )}
               </span>
               {warning && (
-                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
-                  <i className="fa-solid fa-triangle-exclamation text-[9px]"></i>
-                  <span className="text-[9px]">{warning.split('.')[0]}</span>
+                <span className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
+                  <i className="fa-solid fa-triangle-exclamation text-xs"></i>
+                  <span className="text-xs">{warning.split('.')[0]}</span>
                 </span>
               )}
               {isTooLong && !warning && (
-                <span className="text-orange-500 text-[9px]">URL may be too long</span>
+                <span className="text-orange-500 text-xs">URL may be too long</span>
               )}
             </div>
             
             <button
               onClick={handleCopy}
-              className={`w-full py-3 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 ${
+              className={`w-full py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${
                 copied
                   ? "bg-green-500 text-white"
                   : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"

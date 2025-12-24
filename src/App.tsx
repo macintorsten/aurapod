@@ -27,6 +27,7 @@ const AppContent: React.FC = () => {
     activePodcast,
     episodes,
     loadPodcast,
+    loadVirtualPodcast,
     newEpisodes,
     loadNewEpisodes,
     history,
@@ -60,6 +61,9 @@ const AppContent: React.FC = () => {
   const [suggestedPodcasts, setSuggestedPodcasts] = useState<Podcast[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const { queue, addToQueue, removeFromQueue, clearQueue, playNext } =
     useQueue();
   const {
@@ -78,7 +82,90 @@ const AppContent: React.FC = () => {
       .finally(() => setLoadingSuggestions(false));
   }, []);
 
-  // Handle URL share data on mount
+  const handleImportDirect = useCallback(
+    async (data: SharedData) => {
+      // Handle RSS manifest mode (sharing multiple episodes)
+      if (data.shareMode === 'full-manifest' && data.episodes && data.episodes.length > 0) {
+        const podcastId = data.p
+          ? btoa(data.p).substring(0, 16)
+          : APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX + Date.now();
+        
+        const virtualPodcast: Podcast = {
+          id: podcastId,
+          title: data.pt || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
+          image: data.pi || "",
+          feedUrl: "", // No RSS URL for virtual podcast
+          author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
+          description: data.pd || "Shared podcast content",
+        };
+
+        // Convert minimal episodes to full episodes
+        const virtualEpisodes: Episode[] = data.episodes.map(ep => ({
+          id: ep.id,
+          podcastId: podcastId,
+          title: ep.title,
+          image: ep.image || data.pi || "",
+          description: ep.description || "",
+          audioUrl: ep.audioUrl,
+          duration: ep.duration || "Shared",
+          pubDate: ep.pubDate || "",
+          link: "",
+          podcastTitle: data.pt,
+        }));
+
+        // Load virtual podcast and navigate to it
+        loadVirtualPodcast(virtualPodcast, virtualEpisodes);
+        
+        // Navigate to virtual podcast detail view
+        navigate(`/shared/${podcastId}`);
+        
+        return;
+      }
+      
+      // Handle RSS frequency mode or wave-source mode
+      if (data.p && !data.t) {
+        // Just RSS URL, load it normally via existing route
+        navigate(`/podcast/${encodeURIComponent(data.p)}`);
+        return;
+      }
+      
+      // Handle single track (embedded-payload)
+      if (data.t && data.u) {
+        const podcastId = APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX + Date.now();
+        
+        const virtualPodcast: Podcast = {
+          id: podcastId,
+          title: data.st || "Shared Track",
+          image: data.si || data.i || "",
+          feedUrl: "", // No RSS URL for virtual podcast
+          author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
+          description: "Shared single track",
+        };
+        
+        const virtualEpisode: Episode = {
+          id: data.e || "shared-episode-" + Date.now(),
+          podcastId: podcastId,
+          title: data.t,
+          image: data.i || data.si || "",
+          description: data.d || "",
+          audioUrl: data.u,
+          duration: "Shared",
+          pubDate: "",
+          link: "",
+          podcastTitle: data.st,
+        };
+
+        // Load as a virtual podcast with single episode
+        loadVirtualPodcast(virtualPodcast, [virtualEpisode]);
+        
+        // Navigate to virtual podcast detail view
+        navigate(`/shared/${podcastId}`);
+      }
+    },
+    [loadVirtualPodcast, navigate]
+  );
+
+  // Handle URL share data when location changes
   useEffect(() => {
     // With hash routing, query params are in the hash fragment
     // Format: baseUrl/#/?s=encodedData
@@ -101,100 +188,7 @@ const AppContent: React.FC = () => {
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleImportDirect = useCallback(
-    async (data: SharedData) => {
-      // Handle RSS manifest mode (sharing multiple episodes)
-      if (data.shareMode === 'full-manifest' && data.episodes && data.episodes.length > 0) {
-        const podcastId = data.p
-          ? btoa(data.p).substring(0, 16)
-          : APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX;
-        
-        const standalonePodcast: Podcast = {
-          id: podcastId,
-          title: data.pt || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
-          image: data.pi || "",
-          feedUrl: data.p || "",
-          author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
-          description: data.pd || "",
-        };
-
-        await loadPodcast(standalonePodcast);
-        
-        // Optionally auto-play the first episode
-        const firstEpisode: Episode = {
-          id: data.episodes[0].id,
-          podcastId: podcastId,
-          title: data.episodes[0].title,
-          image: data.episodes[0].image || data.pi,
-          description: data.episodes[0].description || "",
-          audioUrl: data.episodes[0].audioUrl,
-          duration: data.episodes[0].duration || "Shared",
-          pubDate: data.episodes[0].pubDate || "",
-          link: "",
-          podcastTitle: data.pt,
-        };
-        setCurrentEpisode(firstEpisode);
-        setPlayerAutoplay(false);
-        
-        return;
-      }
-      
-      // Handle RSS frequency mode or wave-source mode
-      if (data.p && !data.t) {
-        // Just RSS URL, subscribe to it
-        try {
-          const { podcast } = await rssService.fetchPodcast(data.p);
-          await loadPodcast(podcast);
-        } catch (e) {
-          console.error("Failed to load RSS feed:", e);
-        }
-        return;
-      }
-      
-      // Handle single track (embedded-payload or wave-source)
-      if (data.t && data.u) {
-        const podcastId = data.p
-          ? btoa(data.p).substring(0, 16)
-          : APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX;
-        const standalonePodcast: Podcast = {
-          id: podcastId,
-          title: data.st || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
-          image: data.si || data.i || "",
-          feedUrl: data.p || "",
-          author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
-          description: "",
-        };
-        const standaloneEpisode: Episode = {
-          id: data.e || APP_CONSTANTS.DEFAULT_SHARED_EPISODE_ID,
-          podcastId: podcastId,
-          title: data.t,
-          image: data.i,
-          description: data.d || "",
-          audioUrl: data.u,
-          duration: "Shared",
-          pubDate: "",
-          link: "",
-          podcastTitle: data.st,
-        };
-
-        await loadPodcast(standalonePodcast);
-        setCurrentEpisode(standaloneEpisode);
-        setPlayerAutoplay(false); // Don't auto-play shared links
-
-        if (data.p) {
-          try {
-            await loadPodcast({ ...standalonePodcast, feedUrl: data.p });
-          } catch (e) {
-            console.error("Background feed sync failed:", e);
-          }
-        }
-      }
-    },
-    [loadPodcast, setCurrentEpisode, setPlayerAutoplay]
-  );
+  }, [location, handleImportDirect]);
 
   const subscribePodcast = useCallback(
     (podcast: Podcast) => {
@@ -353,6 +347,21 @@ const AppContent: React.FC = () => {
                 isSubscribed={isSubscribed}
               />
             )
+          }
+        />
+        <Route
+          path="/shared/:podcastId"
+          element={
+            <PodcastDetailPage
+              episodes={episodes}
+              currentEpisode={currentEpisode}
+              loadingEpisodeId={loadingEpisodeId}
+              onPlayEpisode={handlePlayEpisode}
+              onAddToQueue={addToQueue}
+              onShare={generateShareData}
+              onSubscribe={subscribePodcast}
+              isSubscribed={isSubscribed}
+            />
           }
         />
         <Route

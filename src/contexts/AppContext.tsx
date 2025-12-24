@@ -22,6 +22,7 @@ interface AppContextValue {
   activePodcast: Podcast | null;
   episodes: Episode[];
   loadPodcast: (podcast: Podcast) => Promise<void>;
+  loadVirtualPodcast: (podcast: Podcast, episodes: Episode[]) => void;
 
   // New episodes
   newEpisodes: (Episode & { podcastTitle: string; podcastImage: string })[];
@@ -150,6 +151,16 @@ export function AppProvider({ children }: AppProviderProps) {
     [addError]
   );
 
+  // Load virtual podcast (from shared data, not RSS)
+  const loadVirtualPodcast = useCallback(
+    (podcast: Podcast, episodes: Episode[]) => {
+      setActivePodcast(podcast);
+      setEpisodes(episodes);
+      setLoading(false);
+    },
+    []
+  );
+
   // Load new episodes from all podcasts
   const loadNewEpisodes = useCallback(async () => {
     setLoading(true);
@@ -220,6 +231,7 @@ export function AppProvider({ children }: AppProviderProps) {
     activePodcast,
     episodes,
     loadPodcast,
+    loadVirtualPodcast,
     newEpisodes,
     loadNewEpisodes,
     markNewEpisodesSeen,
