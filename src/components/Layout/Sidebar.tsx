@@ -31,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSyncHistory,
 }) => {
   const handleNewReleasesClick = () => {
+    onViewChange("new");
     onLoadNewEpisodes();
   };
 
