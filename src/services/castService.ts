@@ -95,7 +95,6 @@ class CastService {
   
   async initialize(): Promise<boolean> {
     if (!this.isEnabled) {
-      console.log('Cast is disabled in config');
       return false;
     }
     
@@ -152,7 +151,6 @@ class CastService {
           );
 
           this.isInitialized = true;
-          console.log('Cast service initialized');
           resolve(true);
         } catch (error) {
           console.error('Failed to initialize Cast service:', error);

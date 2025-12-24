@@ -4,8 +4,6 @@ import { rssService } from './rssService';
 import { Episode } from '../types';
 import { getAppBaseUrl } from '../utils';
 import { APP_CONFIG } from '../config';
-import { getAppBaseUrl } from '../utils';
-import { APP_CONFIG } from '../config';
 
 export type ShareType = 'track' | 'rss';
 export type ShareMode = 'wave-source' | 'embedded-payload' | 'frequency' | 'full-manifest';
