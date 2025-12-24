@@ -1,38 +1,37 @@
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Podcast } from "../../types";
 import { APP_CONFIG } from "../../config";
-import { View } from "../../constants";
 
 interface HeaderProps {
-  view: View;
   activePodcast: Podcast | null;
   errorCount: number;
   onShowStatusPanel: () => void;
-  onHomeClick: () => void;
   version: { version: string };
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  view,
   activePodcast,
   errorCount,
   onShowStatusPanel,
-  onHomeClick,
   version,
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const getTitle = () => {
-    switch (view) {
-      case "home":
-        return "Discover";
-      case "archive":
-        return "Signal Archive";
-      case "new":
-        return "New Releases";
-      case "podcast":
-        return activePodcast?.title || "Podcast";
-      default:
-        return "AuraPod";
+    if (location.pathname === "/") return "Discover";
+    if (location.pathname === "/archive") return "Signal Archive";
+    if (location.pathname === "/new") return "New Releases";
+    if (location.pathname.startsWith("/podcast")) {
+      return activePodcast?.title || "Podcast";
     }
+    return "AuraPod";
+  };
+
+  const handleHomeClick = () => {
+    navigate("/");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -55,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
         <button
-          onClick={onHomeClick}
+          onClick={handleHomeClick}
           className="w-8 h-8 rounded-full aura-logo shadow-lg opacity-80 hover:opacity-100 transition-opacity transform hover:scale-105"
           title={`${APP_CONFIG.appName} ${version.version}`}
         ></button>

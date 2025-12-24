@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface PlayerControlsProps {
   isPlaying: boolean;
@@ -28,9 +28,13 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
       <button
         onClick={onTogglePlay}
         className="w-12 h-12 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center justify-center shadow-lg"
-        title={isPlaying ? 'Pause' : 'Play'}
+        title={isPlaying ? "Pause" : "Play"}
       >
-        <i className={`fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'} text-sm ${!isPlaying ? 'ml-0.5' : ''}`}></i>
+        <i
+          className={`fa-solid ${isPlaying ? "fa-pause" : "fa-play"} text-sm ${
+            !isPlaying ? "ml-0.5" : ""
+          }`}
+        ></i>
       </button>
 
       <button

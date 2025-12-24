@@ -1,6 +1,8 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Podcast } from "../../types";
 import { LoadingView } from "../../components/Loading";
+import { buildPodcastRoute } from "../../constants/routes";
 
 interface HomePageProps {
   searchQuery: string;
@@ -9,7 +11,6 @@ interface HomePageProps {
   onSearch: (query: string) => void;
   suggestedPodcasts: Podcast[];
   loadingSuggestions: boolean;
-  onPodcastSelect: (podcast: Podcast) => void;
   onSubscribe: (podcast: Podcast) => void;
   isSubscribed: (feedUrl: string) => boolean;
 }
@@ -21,10 +22,15 @@ export const HomePage: React.FC<HomePageProps> = ({
   onSearch,
   suggestedPodcasts,
   loadingSuggestions,
-  onPodcastSelect,
   onSubscribe,
   isSubscribed,
 }) => {
+  const navigate = useNavigate();
+
+  const handlePodcastSelect = (podcast: Podcast) => {
+    navigate(buildPodcastRoute(podcast.feedUrl));
+  };
+
   if (loadingSuggestions && suggestedPodcasts.length === 0) {
     return <LoadingView message="Loading trending podcasts..." />;
   }
@@ -47,7 +53,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             {searchResults.map((result) => (
               <div
                 key={result.id}
-                onClick={() => onPodcastSelect(result)}
+                onClick={() => handlePodcastSelect(result)}
                 className="group cursor-pointer flex flex-col"
               >
                 <div className="relative aspect-square mb-4 overflow-hidden rounded-2xl shadow-md group-hover:shadow-xl transition-all">
@@ -77,7 +83,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             {suggestedPodcasts.map((podcast) => (
               <button
                 key={podcast.id}
-                onClick={() => onPodcastSelect(podcast)}
+                onClick={() => handlePodcastSelect(podcast)}
                 className="bg-zinc-50 dark:bg-zinc-900/40 hover:bg-white dark:hover:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 transition flex items-center gap-4 group"
               >
                 <img

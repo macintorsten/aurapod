@@ -7,7 +7,7 @@ interface ShareModalProps {
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
-  const { url, length, isTooLong, payloadLength } =
+  const { url, length, isTooLong, payloadLength, warning } =
     shareService.generateUrl(data);
   const [copied, setCopied] = useState(false);
 
@@ -96,6 +96,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({ data, onClose }) => {
               )}
             </button>
           </div>
+          {warning && (
+            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl p-4 flex gap-3 items-start">
+              <i className="fa-solid fa-triangle-exclamation text-amber-500 text-sm mt-0.5"></i>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                {warning}
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between text-[10px] font-bold uppercase text-zinc-400 pt-4 border-t border-zinc-100 dark:border-zinc-800">
             <span>Payload: {payloadLength} bytes</span>
             <span className={isTooLong ? "text-orange-500" : ""}>

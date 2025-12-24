@@ -1,14 +1,12 @@
 import React from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Podcast, Theme } from "../../types";
 import { APP_CONFIG } from "../../config";
-import { View } from "../../constants";
+import { encodeFeedUrl } from "../../constants/routes";
 
 interface SidebarProps {
-  view: View;
-  onViewChange: (view: View) => void;
   podcasts: Podcast[];
   activePodcast: Podcast | null;
-  onPodcastSelect: (podcast: Podcast) => void;
   queueCount: number;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -18,11 +16,8 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  view,
-  onViewChange,
   podcasts,
   activePodcast,
-  onPodcastSelect,
   queueCount,
   theme,
   onThemeChange,
@@ -30,22 +25,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLoadNewEpisodes,
   onSyncHistory,
 }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const handleNewReleasesClick = () => {
-    onViewChange("new");
     onLoadNewEpisodes();
+    navigate("/new");
   };
 
   const handleArchiveClick = () => {
-    onViewChange("archive");
     onSyncHistory();
+    navigate("/archive");
+  };
+
+  const getNavLinkClass = (path: string) => {
+    const isActive = location.pathname === path;
+    return `w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
+      isActive
+        ? "bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium"
+        : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
+    }`;
+  };
+
+  const isPodcastActive = (feedUrl: string) => {
+    return location.pathname.startsWith("/podcast/") && 
+           activePodcast?.feedUrl === feedUrl;
   };
 
   return (
     <aside className="w-64 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shrink-0">
       <div className="p-6">
-        <div
+        <Link
+          to="/"
           className="flex items-center gap-3 mb-8 text-zinc-900 dark:text-white group cursor-pointer"
-          onClick={() => onViewChange("home")}
         >
           <div className="w-9 h-9 aura-logo rounded-xl flex items-center justify-center text-white animate-pulse-slow">
             <i className="fa-solid fa-microphone-lines text-sm relative z-10"></i>
@@ -58,38 +70,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               V{version.version}
             </span>
           </div>
-        </div>
+        </Link>
 
         <nav className="space-y-1">
-          <button
-            onClick={() => onViewChange("home")}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
-              view === "home"
-                ? "bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium"
-                : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-            }`}
-          >
+          <NavLink to="/" className={getNavLinkClass("/")}>
             <i className="fa-solid fa-compass text-sm"></i> Discover
-          </button>
+          </NavLink>
 
           <button
             onClick={handleNewReleasesClick}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
-              view === "new"
-                ? "bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium"
-                : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-            }`}
+            className={getNavLinkClass("/new")}
           >
             <i className="fa-solid fa-bolt-lightning text-sm"></i> New Releases
           </button>
 
           <button
             onClick={handleArchiveClick}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
-              view === "archive"
-                ? "bg-indigo-50 dark:bg-zinc-800 text-indigo-600 dark:text-white font-medium"
-                : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-            }`}
+            className={getNavLinkClass("/archive")}
           >
             <i className="fa-solid fa-box-archive text-sm"></i> Signal Archive
             {queueCount > 0 && (
@@ -109,11 +106,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         <div className="space-y-1">
           {podcasts.map((p) => (
-            <div
+            <Link
               key={p.id}
-              onClick={() => onPodcastSelect(p)}
+              to={`/podcast/${encodeFeedUrl(p.feedUrl)}`}
               className={`group flex items-center gap-3 cursor-pointer p-2 rounded-xl transition ${
-                activePodcast?.feedUrl === p.feedUrl && view === "podcast"
+                isPodcastActive(p.feedUrl)
                   ? "bg-indigo-500/10 dark:bg-indigo-900/20"
                   : "hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
               }`}
@@ -125,14 +122,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
               <span
                 className={`text-xs truncate flex-1 ${
-                  activePodcast?.feedUrl === p.feedUrl && view === "podcast"
+                  isPodcastActive(p.feedUrl)
                     ? "text-indigo-600 dark:text-indigo-400 font-medium"
                     : ""
                 }`}
               >
                 {p.title}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       </div>

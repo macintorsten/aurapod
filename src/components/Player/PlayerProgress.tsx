@@ -1,5 +1,5 @@
-import React from 'react';
-import { formatTime } from '../../utils';
+import React from "react";
+import { formatTime } from "../../utils";
 
 interface PlayerProgressProps {
   currentTime: number;

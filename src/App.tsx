@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Podcast, Episode, PlaybackState } from "./types";
 import { rssService } from "./services/rssService";
 import { shareService, SharedData } from "./services/shareService";
@@ -44,8 +45,6 @@ const AppContent: React.FC = () => {
   } = usePlayerContext();
 
   const {
-    view,
-    setView,
     theme,
     setTheme,
     showStatusPanel,
@@ -78,7 +77,7 @@ const AppContent: React.FC = () => {
   // Handle URL share data on mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const sharedPayload = urlParams.get("d");
+    const sharedPayload = urlParams.get("s") || urlParams.get("d"); // Support both ?s= and legacy ?d=
     if (sharedPayload) {
       try {
         const data = shareService.decode(sharedPayload);
@@ -121,8 +120,7 @@ const AppContent: React.FC = () => {
 
         await loadPodcast(standalonePodcast);
         setCurrentEpisode(standaloneEpisode);
-        setPlayerAutoplay(false);
-        setView("podcast");
+        setPlayerAutoplay(false); // Don't auto-play shared links
 
         if (data.p) {
           try {
@@ -133,7 +131,7 @@ const AppContent: React.FC = () => {
         }
       }
     },
-    [loadPodcast, setCurrentEpisode, setPlayerAutoplay, setView]
+    [loadPodcast, setCurrentEpisode, setPlayerAutoplay]
   );
 
   const subscribePodcast = useCallback(
@@ -147,9 +145,8 @@ const AppContent: React.FC = () => {
   const handleSelectPodcast = useCallback(
     async (podcast: Podcast) => {
       await loadPodcast(podcast);
-      setView("podcast");
     },
-    [loadPodcast, setView]
+    [loadPodcast]
   );
 
   const handlePlayEpisode = useCallback(
@@ -257,94 +254,116 @@ const AppContent: React.FC = () => {
     );
   }, [currentEpisode, podcasts, activePodcast]);
 
-  const renderView = () => {
-    if (loading) {
-      return <LoadingView message="Harmonizing Signal..." />;
-    }
-
-    switch (view) {
-      case "home":
-        return (
-          <HomePage
-            searchQuery={searchQuery}
-            searchResults={searchResults}
-            searching={searching}
-            onSearch={handleSearch}
-            suggestedPodcasts={suggestedPodcasts}
-            loadingSuggestions={loadingSuggestions}
-            onPodcastSelect={handleSelectPodcast}
-            onSubscribe={subscribePodcast}
-            isSubscribed={isSubscribed}
-          />
-        );
-
-      case "podcast":
-        return activePodcast ? (
-          <PodcastDetailPage
-            podcast={activePodcast}
-            episodes={episodes}
-            currentEpisode={currentEpisode}
-            loadingEpisodeId={loadingEpisodeId}
-            onBack={() => setView("home")}
-            onPlayEpisode={handlePlayEpisode}
-            onAddToQueue={addToQueue}
-            onShare={generateShareData}
-            onSubscribe={subscribePodcast}
-            isSubscribed={isSubscribed(activePodcast.feedUrl)}
-          />
-        ) : null;
-
-      case "new":
-        return (
-          <NewReleasesPage
-            newEpisodes={newEpisodes}
-            currentEpisode={currentEpisode}
-            podcasts={podcasts}
-            onPlayEpisode={handlePlayEpisode}
-            onAddToQueue={addToQueue}
-            onShare={generateShareData}
-            onRefresh={loadNewEpisodes}
-            onGoHome={() => setView("home")}
-          />
-        );
-
-      case "archive":
-        return (
-          <ArchivePage
-            queue={queue}
-            history={history}
-            currentEpisode={currentEpisode}
-            loadingEpisodeId={loadingEpisodeId}
-            onPlayEpisode={handlePlayEpisode}
-            onPlayFromHistory={handlePlayFromHistory}
-            onRemoveFromQueue={removeFromQueue}
-            onClearQueue={clearQueue}
-            onClearHistory={handleClearHistory}
-          />
-        );
-
-      default:
-        return null;
-    }
-  };
-
   return (
-    <MainLayout
-      view={view}
-      onViewChange={setView}
-      podcasts={podcasts}
-      activePodcast={activePodcast}
-      onPodcastSelect={handleSelectPodcast}
-      queueCount={queue.length}
-      theme={theme}
-      onThemeChange={setTheme}
-      version={version}
-      errorCount={errors.length}
-      onShowStatusPanel={() => setShowStatusPanel(true)}
-      onLoadNewEpisodes={loadNewEpisodes}
-      onSyncHistory={syncHistory}
-    >
-      {renderView()}
+    <div className="h-screen flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-hidden">
+        <MainLayout
+          podcasts={podcasts}
+          activePodcast={activePodcast}
+          queueCount={queue.length}
+          theme={theme}
+          onThemeChange={setTheme}
+          version={version}
+          errorCount={errors.length}
+          onShowStatusPanel={() => setShowStatusPanel(true)}
+          onLoadNewEpisodes={loadNewEpisodes}
+          onSyncHistory={syncHistory}
+        >
+      <Routes>
+        <Route
+          path="/"
+          element={
+            loading ? (
+              <LoadingView message="Harmonizing Signal..." />
+            ) : (
+              <HomePage
+                searchQuery={searchQuery}
+                searchResults={searchResults}
+                searching={searching}
+                onSearch={handleSearch}
+                suggestedPodcasts={suggestedPodcasts}
+                loadingSuggestions={loadingSuggestions}
+                onSubscribe={subscribePodcast}
+                isSubscribed={isSubscribed}
+              />
+            )
+          }
+        />
+        <Route
+          path="/podcast/:feedUrl"
+          element={
+            <PodcastDetailPage
+              episodes={episodes}
+              currentEpisode={currentEpisode}
+              loadingEpisodeId={loadingEpisodeId}
+              onPlayEpisode={handlePlayEpisode}
+              onAddToQueue={addToQueue}
+              onShare={generateShareData}
+              onSubscribe={subscribePodcast}
+              isSubscribed={isSubscribed}
+            />
+          }
+        />
+        <Route
+          path="/podcast/:feedUrl/episode/:episodeId"
+          element={
+            <PodcastDetailPage
+              episodes={episodes}
+              currentEpisode={currentEpisode}
+              loadingEpisodeId={loadingEpisodeId}
+              onPlayEpisode={handlePlayEpisode}
+              onAddToQueue={addToQueue}
+              onShare={generateShareData}
+              onSubscribe={subscribePodcast}
+              isSubscribed={isSubscribed}
+            />
+          }
+        />
+        <Route
+          path="/new"
+          element={
+            <NewReleasesPage
+              newEpisodes={newEpisodes}
+              currentEpisode={currentEpisode}
+              podcasts={podcasts}
+              onPlayEpisode={handlePlayEpisode}
+              onAddToQueue={addToQueue}
+              onShare={generateShareData}
+              onRefresh={loadNewEpisodes}
+            />
+          }
+        />
+        <Route
+          path="/archive"
+          element={
+            <ArchivePage
+              queue={queue}
+              history={history}
+              currentEpisode={currentEpisode}
+              loadingEpisodeId={loadingEpisodeId}
+              onPlayEpisode={handlePlayEpisode}
+              onPlayFromHistory={handlePlayFromHistory}
+              onRemoveFromQueue={removeFromQueue}
+              onClearQueue={clearQueue}
+              onClearHistory={handleClearHistory}
+            />
+          }
+        />
+      </Routes>
+
+      {showStatusPanel && (
+        <SystemStatusPanel
+          errors={errors}
+          onClose={() => setShowStatusPanel(false)}
+          onClear={clearErrors}
+        />
+      )}
+
+      {shareData && (
+        <ShareModal data={shareData} onClose={() => setShareData(null)} />
+      )}
+        </MainLayout>
+      </div>
 
       {currentEpisode && playerPodcast && (
         <Player
@@ -363,31 +382,21 @@ const AppContent: React.FC = () => {
           onReady={() => {}}
         />
       )}
-
-      {showStatusPanel && (
-        <SystemStatusPanel
-          errors={errors}
-          onClose={() => setShowStatusPanel(false)}
-          onClear={clearErrors}
-        />
-      )}
-
-      {shareData && (
-        <ShareModal data={shareData} onClose={() => setShareData(null)} />
-      )}
-    </MainLayout>
+    </div>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <AppProvider>
-      <PlayerProvider>
-        <UIProvider>
-          <AppContent />
-        </UIProvider>
-      </PlayerProvider>
-    </AppProvider>
+    <BrowserRouter>
+      <AppProvider>
+        <PlayerProvider>
+          <UIProvider>
+            <AppContent />
+          </UIProvider>
+        </PlayerProvider>
+      </AppProvider>
+    </BrowserRouter>
   );
 };
 

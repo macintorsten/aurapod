@@ -1,36 +1,85 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Podcast, Episode } from "../../types";
 import EpisodeItem from "../../components/EpisodeItem";
+import { useAppContext } from "../../contexts/AppContext";
+import { usePlayerContext } from "../../contexts/PlayerContext";
+import { decodeFeedUrl, decodeEpisodeId } from "../../constants/routes";
+import { LoadingView } from "../../components/Loading";
 
 interface PodcastDetailPageProps {
-  podcast: Podcast;
   episodes: Episode[];
   currentEpisode: Episode | null;
   loadingEpisodeId: string | null;
-  onBack: () => void;
   onPlayEpisode: (episode: Episode) => void;
   onAddToQueue: (episode: Episode) => void;
   onShare: (podcastUrl: string, episodeId?: string) => void;
   onSubscribe: (podcast: Podcast) => void;
-  isSubscribed: boolean;
+  isSubscribed: (feedUrl: string) => boolean;
 }
 
 export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
-  podcast,
   episodes,
   currentEpisode,
   loadingEpisodeId,
-  onBack,
   onPlayEpisode,
   onAddToQueue,
   onShare,
   onSubscribe,
   isSubscribed,
 }) => {
+  const { feedUrl: encodedFeedUrl, episodeId: encodedEpisodeId } = useParams<{
+    feedUrl: string;
+    episodeId?: string;
+  }>();
+  const navigate = useNavigate();
+  const { activePodcast, loadPodcast, loading } = useAppContext();
+  const { setCurrentEpisode, setPlayerAutoplay } = usePlayerContext();
+
+  // Load podcast when feedUrl changes
+  useEffect(() => {
+    if (!encodedFeedUrl) return;
+
+    const feedUrl = decodeFeedUrl(encodedFeedUrl);
+    
+    // Only load if we don't have this podcast loaded or if URL changed
+    if (!activePodcast || activePodcast.feedUrl !== feedUrl) {
+      // Find podcast from subscriptions or create a minimal one
+      const podcast: Podcast = {
+        id: btoa(feedUrl).substring(0, 16),
+        title: "Loading...",
+        feedUrl,
+        image: "",
+        author: "",
+        description: "",
+      };
+      loadPodcast(podcast);
+    }
+  }, [encodedFeedUrl, activePodcast, loadPodcast]);
+
+  // Handle episodeId param - select episode without auto-play
+  useEffect(() => {
+    if (!encodedEpisodeId || !episodes.length) return;
+
+    const episodeId = decodeEpisodeId(encodedEpisodeId);
+    const episode = episodes.find((ep) => ep.id === episodeId);
+
+    if (episode && currentEpisode?.id !== episodeId) {
+      setCurrentEpisode(episode);
+      setPlayerAutoplay(false); // Don't auto-play from direct URL
+    }
+  }, [encodedEpisodeId, episodes, currentEpisode, setCurrentEpisode, setPlayerAutoplay]);
+
+  if (loading || !activePodcast) {
+    return <LoadingView message="Tuning Signal..." />;
+  }
+
+  const podcast = activePodcast;
+
   return (
     <div className="max-w-5xl mx-auto">
       <button
-        onClick={onBack}
+        onClick={() => navigate(-1)}
         className="mb-10 text-xs font-bold text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition flex items-center gap-3"
       >
         <i className="fa-solid fa-arrow-left"></i> Back
@@ -62,7 +111,7 @@ export const PodcastDetailPage: React.FC<PodcastDetailPageProps> = ({
             className="text-zinc-500 text-sm max-w-3xl leading-relaxed prose dark:prose-invert"
             dangerouslySetInnerHTML={{ __html: podcast.description }}
           ></p>
-          {!isSubscribed && (
+          {!isSubscribed(podcast.feedUrl) && (
             <button
               onClick={() => onSubscribe(podcast)}
               className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-xs font-bold shadow-xl hover:bg-indigo-700 transition"

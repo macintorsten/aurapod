@@ -1,5 +1,5 @@
-import React from 'react';
-import { Episode, Podcast } from '../../types';
+import React from "react";
+import { Episode, Podcast } from "../../types";
 
 interface PlayerInfoProps {
   episode: Episode;
@@ -38,7 +38,7 @@ export const PlayerInfo: React.FC<PlayerInfoProps> = ({
           {isCasting ? (
             <span className="flex items-center gap-1.5">
               <i className="fa-solid fa-tv text-indigo-600"></i>
-              Casting to {castDeviceName || 'Device'}
+              Casting to {castDeviceName || "Device"}
             </span>
           ) : (
             podcast.title

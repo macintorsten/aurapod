@@ -63,7 +63,7 @@ export const shareService = {
   /**
    * Generates the full share URL.
    */
-  generateUrl: (data: SharedData): { url: string; length: number; isTooLong: boolean; payloadLength: number } => {
+  generateUrl: (data: SharedData): { url: string; length: number; isTooLong: boolean; payloadLength: number; warning?: string } => {
     const code = shareService.encode(data);
     
     let baseUrl = window.location.href.split('?')[0].split('#')[0];
@@ -81,11 +81,17 @@ export const shareService = {
       finalUrl = `${baseUrl}${separator}s=${code}`;
     }
 
+    const isTooLong = finalUrl.length > 2000;
+    const warning = isTooLong 
+      ? `URL exceeds 2000 characters (${finalUrl.length}). Some older browsers or platforms may not support URLs this long.`
+      : undefined;
+
     return {
       url: finalUrl,
       length: finalUrl.length,
-      isTooLong: finalUrl.length > 2000,
-      payloadLength: code.length
+      isTooLong,
+      payloadLength: code.length,
+      warning
     };
   }
 };

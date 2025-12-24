@@ -1,5 +1,5 @@
-import React from 'react';
-import { Episode } from '../../types';
+import React from "react";
+import { Episode } from "../../types";
 
 interface PlayerQueueProps {
   queue: Episode[];
@@ -29,8 +29,12 @@ export const PlayerQueue: React.FC<PlayerQueueProps> = ({
       >
         <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
           <div>
-            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Up Next</h3>
-            <p className="text-xs text-zinc-500 mt-1">{queue.length} episodes in queue</p>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+              Up Next
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1">
+              {queue.length} episodes in queue
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -52,7 +56,9 @@ export const PlayerQueue: React.FC<PlayerQueueProps> = ({
                 key={ep.id}
                 className="flex items-center gap-4 p-3 bg-zinc-50 dark:bg-zinc-800/40 rounded-xl group hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
               >
-                <span className="text-sm font-bold text-zinc-400 w-6">{index + 1}</span>
+                <span className="text-sm font-bold text-zinc-400 w-6">
+                  {index + 1}
+                </span>
                 <img
                   src={ep.image || ep.podcastImage}
                   alt=""
@@ -62,7 +68,9 @@ export const PlayerQueue: React.FC<PlayerQueueProps> = ({
                   <h4 className="text-sm font-bold text-zinc-900 dark:text-white truncate">
                     {ep.title}
                   </h4>
-                  <p className="text-xs text-zinc-500 truncate">{ep.podcastTitle}</p>
+                  <p className="text-xs text-zinc-500 truncate">
+                    {ep.podcastTitle}
+                  </p>
                 </div>
                 <button
                   onClick={() => onRemove(ep.id)}

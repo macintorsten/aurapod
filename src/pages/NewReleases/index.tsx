@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Episode, Podcast } from "../../types";
 import EpisodeItem from "../../components/EpisodeItem";
 import { EmptyState } from "../../components/EmptyState";
@@ -11,7 +12,6 @@ interface NewReleasesPageProps {
   onAddToQueue: (episode: Episode) => void;
   onShare: (podcastUrl: string, episodeId: string) => void;
   onRefresh: () => void;
-  onGoHome: () => void;
 }
 
 export const NewReleasesPage: React.FC<NewReleasesPageProps> = ({
@@ -22,8 +22,9 @@ export const NewReleasesPage: React.FC<NewReleasesPageProps> = ({
   onAddToQueue,
   onShare,
   onRefresh,
-  onGoHome,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-5xl mx-auto space-y-12 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -45,7 +46,7 @@ export const NewReleasesPage: React.FC<NewReleasesPageProps> = ({
           description="No new transmissions detected from your library."
           action={
             <button
-              onClick={onGoHome}
+              onClick={() => navigate("/")}
               className="mt-8 text-indigo-600 font-bold text-sm"
             >
               Discover New Frequencies

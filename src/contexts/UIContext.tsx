@@ -9,7 +9,6 @@ import React, {
 import { Theme } from "../types";
 import { storageService } from "../services/storageService";
 import { APP_CONFIG } from "../config";
-import { VIEWS, View } from "../constants";
 
 interface VersionInfo {
   version: string;
@@ -21,10 +20,6 @@ interface UIContextValue {
   // Theme
   theme: Theme;
   setTheme: (theme: Theme) => void;
-
-  // View/routing (temporary until React Router is added)
-  view: View;
-  setView: (view: View) => void;
 
   // Modal states
   showStatusPanel: boolean;
@@ -59,7 +54,6 @@ export function UIProvider({ children }: UIProviderProps) {
   const [theme, setThemeState] = useState<Theme>(
     storageService.getTheme() || APP_CONFIG.defaultTheme
   );
-  const [view, setView] = useState<View>(VIEWS.HOME);
   const [showStatusPanel, setShowStatusPanel] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -97,8 +91,6 @@ export function UIProvider({ children }: UIProviderProps) {
   const value: UIContextValue = {
     theme,
     setTheme,
-    view,
-    setView,
     showStatusPanel,
     setShowStatusPanel,
     showShareModal,

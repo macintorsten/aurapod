@@ -1,5 +1,5 @@
-import React from 'react';
-import { Episode } from '../../types';
+import React from "react";
+import { Episode } from "../../types";
 
 interface PlayerActionsProps {
   hasQueue: boolean;
@@ -51,8 +51,8 @@ export const PlayerActions: React.FC<PlayerActionsProps> = ({
           onClick={onToggleCast}
           className={`w-9 h-9 rounded-full transition flex items-center justify-center ${
             isCasting
-              ? 'bg-indigo-600 text-white'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+              ? "bg-indigo-600 text-white"
+              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
           }`}
           title="Cast"
         >
