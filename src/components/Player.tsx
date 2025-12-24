@@ -4,6 +4,7 @@ import { Episode, Podcast } from '../types';
 import { storageService } from '../services/storageService';
 import { castService } from '../services/castService';
 import { APP_CONFIG } from '../config';
+import { PlayerInfo, PlayerControls, PlayerProgress, PlayerActions, PlayerQueue } from './Player/index';
 
 interface PlayerProps {
   episode: Episode;
@@ -43,6 +44,7 @@ const Player: React.FC<PlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isCasting, setIsCasting] = useState(false);
   const [castDeviceName, setCastDeviceName] = useState<string | undefined>();
+  const [showQueue, setShowQueue] = useState(false);
 
   const saveProgress = useCallback(() => {
     if (isCasting) {
@@ -279,82 +281,69 @@ const Player: React.FC<PlayerProps> = ({
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="shrink-0 w-full z-50">
-      <div className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-200 dark:border-zinc-800/50 p-4 shadow-xl">
-        <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row items-center gap-4 lg:gap-8">
-          
-          <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
-            <div className="relative shrink-0">
-              <img src={episode.image || podcast.image} alt="" className="w-14 h-14 rounded-xl shadow-lg object-cover border border-zinc-100 dark:border-zinc-700/50" />
-              {isBuffering && (
-                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-bold truncate text-zinc-900 dark:text-zinc-100 leading-tight mb-0.5">{episode.title}</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-medium">
-                {isCasting ? (
-                  <span className="flex items-center gap-1.5">
-                    <i className="fa-solid fa-tv text-indigo-600"></i>
-                    <span>Casting to {castDeviceName}</span>
-                  </span>
-                ) : (
-                  podcast.title
-                )}
-              </p>
-            </div>
-          </div>
+    <>
+      <div className="shrink-0 w-full z-50">
+        <div className="bg-white/95 dark:bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-200 dark:border-zinc-800/50 p-4 shadow-xl">
+          <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row items-center gap-4 lg:gap-8">
+            
+            <PlayerInfo 
+              episode={episode}
+              podcast={podcast}
+              isBuffering={isBuffering}
+              isCasting={isCasting}
+              castDeviceName={castDeviceName}
+            />
 
-          <div className="flex flex-col items-center gap-2 flex-[2] w-full">
-            <div className="flex items-center gap-8 mb-1">
-              <button onClick={() => skipSeconds(-15)} className="text-zinc-400 hover:text-indigo-600 transition-colors"><i className="fa-solid fa-rotate-left text-xl"></i></button>
-              <button 
-                onClick={togglePlay} 
-                className={`w-12 h-12 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 flex items-center justify-center transition shadow-xl hover:scale-105 ${isBuffering && !isPlaying ? 'opacity-50' : ''}`}
-                disabled={isBuffering && !isPlaying}
-              >
-                {isBuffering && !isPlaying ? (
-                  <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin"></div>
-                ) : (
-                  <i className={`fa-solid ${isPlaying ? 'fa-pause' : 'fa-play'} text-lg`}></i>
-                )}
-              </button>
-              <button onClick={() => skipSeconds(30)} className="text-zinc-400 hover:text-indigo-600 transition-colors"><i className="fa-solid fa-rotate-right text-xl"></i></button>
-              <button onClick={onNext} disabled={queue.length === 0} className="text-zinc-400 hover:text-indigo-600 transition-colors disabled:opacity-20"><i className="fa-solid fa-forward-step text-xl"></i></button>
+            <div className="flex flex-col items-center gap-2 flex-[2] w-full">
+              <PlayerControls 
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlay}
+                onSkipBackward={() => skipSeconds(-15)}
+                onSkipForward={() => skipSeconds(30)}
+                onNext={onNext}
+              />
+              
+              <PlayerProgress 
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={(percent) => {
+                  if (isCasting) {
+                    castService.seek((percent / 100) * duration);
+                  } else if (audioRef.current && isFinite(audioRef.current.duration)) {
+                    audioRef.current.currentTime = (percent / 100) * audioRef.current.duration;
+                  }
+                }}
+              />
             </div>
-            <div className="flex items-center gap-4 w-full group/progress">
-              <span className="text-[10px] text-zinc-400 w-10 text-right font-mono">{formatTime(currentTime)}</span>
-              <div className="relative flex-1 h-1 flex items-center">
-                <div className="absolute inset-0 bg-zinc-200 dark:bg-zinc-800 rounded-full"></div>
-                <div className="absolute inset-y-0 left-0 bg-indigo-600 rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                <input type="range" min="0" max={duration || 0} step="0.1" value={currentTime} onChange={(e) => { const v = parseFloat(e.target.value); if(isCasting) { castService.seek(v); } else if(audioRef.current) { audioRef.current.currentTime = v; } }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-              </div>
-              <span className="text-[10px] text-zinc-400 w-10 font-mono">{formatTime(duration)}</span>
-            </div>
-          </div>
 
-          <div className="hidden lg:flex items-center gap-4 flex-1 justify-end">
-            {APP_CONFIG.cast.enabled && (
-              <button 
-                onClick={handleCastToggle}
-                className={`w-10 h-10 flex items-center justify-center rounded-xl transition ${
-                  isCasting 
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                    : 'hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400'
-                }`}
-                title={isCasting ? `Casting to ${castDeviceName}` : 'Cast'}
-              >
-                <i className="fa-solid fa-tv"></i>
-              </button>
-            )}
-            <button onClick={onShare} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 transition"><i className="fa-solid fa-share-nodes"></i></button>
-            <button onClick={() => setPlaybackRate(prev => { const n = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length]; if(audioRef.current) audioRef.current.playbackRate = n; return n; })} className="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-[10px] font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition min-w-[50px]">{playbackRate}x</button>
-            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-red-500 transition-all"><i className="fa-solid fa-xmark text-lg"></i></button>
+            <PlayerActions 
+              hasQueue={queue.length > 0}
+              isCastAvailable={APP_CONFIG.cast.enabled}
+              isCasting={isCasting}
+              playbackRate={playbackRate}
+              speeds={SPEEDS}
+              onShare={onShare}
+              onToggleQueue={() => setShowQueue(!showQueue)}
+              onToggleCast={handleCastToggle}
+              onChangeSpeed={() => setPlaybackRate(prev => {
+                const n = SPEEDS[(SPEEDS.indexOf(prev) + 1) % SPEEDS.length];
+                if (audioRef.current) audioRef.current.playbackRate = n;
+                return n;
+              })}
+              onClose={onClose}
+            />
           </div>
         </div>
       </div>
+      
+      <PlayerQueue 
+        isOpen={showQueue}
+        queue={queue}
+        onClose={() => setShowQueue(false)}
+        onRemove={onRemoveFromQueue}
+        onClear={onClearQueue}
+      />
+      
       <audio 
         ref={audioRef} 
         onEnded={onNext} 
@@ -364,7 +353,7 @@ const Player: React.FC<PlayerProps> = ({
         onCanPlay={handleCanPlay}
         onError={() => setError("Frequency interruption.")} 
       />
-    </div>
+    </>
   );
 };
 
