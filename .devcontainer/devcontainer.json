@@ -1,7 +1,7 @@
 {
   "name": "AuraPod Development",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
-  
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -19,9 +19,9 @@
 
   "postCreateCommand": "npm install && npx playwright install --with-deps chromium",
 
-  "forwardPorts": [5173],
+  "forwardPorts": [3000],
   "portsAttributes": {
-    "5173": {
+    "3000": {
       "label": "Dev Server",
       "onAutoForward": "notify"
     }
