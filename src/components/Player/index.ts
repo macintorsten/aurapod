@@ -8,3 +8,4 @@ export * from "./PlayerProgress";
 export * from "./PlayerActions";
 export * from "./PlayerQueue";
 export * from "./PlayerPresentation";
+export * from "./PlayerContainer";
