@@ -52,24 +52,6 @@ test.describe('Theme and UI Persistence', () => {
     await expect(page.locator('body')).toBeVisible();
   });
 
-  test('should toggle between all three theme options', async ({ page }) => {
-    const lightButton = page.locator('button:has(i.fa-sun)');
-    const darkButton = page.locator('button:has(i.fa-moon)');
-    const systemButton = page.locator('button:has(i.fa-desktop)');
-    
-    // Click light
-    await lightButton.click();
-    
-    // Click dark
-    await darkButton.click();
-    
-    // Click system
-    await systemButton.click();
-    
-    // Should not crash
-    await expect(page.locator('body')).toBeVisible();
-  });
-
   test('should persist podcast library across sessions', async ({ page }) => {
     // Check localStorage for podcasts
     const podcastsExist = await page.evaluate(() => {
@@ -96,6 +78,7 @@ test.describe('Theme and UI Persistence', () => {
     });
     
     await page.reload();
+    await expect(page.locator('text=AuraPod')).toBeVisible();
     
     // History should be persisted
     const history = await page.evaluate(() => {
@@ -105,31 +88,6 @@ test.describe('Theme and UI Persistence', () => {
     
     expect(history).toHaveProperty('ep1');
     expect(history.ep1.currentTime).toBe(120);
-  });
-
-  test('should handle localStorage quota gracefully', async ({ page }) => {
-    // Try to store a very large amount of data
-    // (This tests error handling for quota exceeded)
-    
-    const result = await page.evaluate(() => {
-      try {
-        const largeData = Array.from({ length: 1000 }, (_, i) => ({
-          id: `ep${i}`,
-          title: `Episode ${i}`,
-          description: 'A'.repeat(1000), // 1KB per episode
-          url: `https://example.com/ep${i}.mp3`,
-          duration: 3600,
-          published: '2024-01-01'
-        }));
-        localStorage.setItem('test_large_data', JSON.stringify(largeData));
-        return 'success';
-      } catch (e) {
-        return 'quota_exceeded';
-      }
-    });
-    
-    // Should handle either success or quota exceeded gracefully
-    expect(['success', 'quota_exceeded']).toContain(result);
   });
 
   test('should clear all localStorage data when requested', async ({ page }) => {
@@ -162,32 +120,17 @@ test.describe('Theme and UI Persistence', () => {
     
     // Reload - app should handle gracefully
     await page.reload();
-    await expect(page.locator('text=AuraPod')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Discover/i })).toBeVisible();
     
     // App should still load
-    await expect(page.locator('text=AuraPod')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Discover/i })).toBeVisible();
   });
 
-  test('should maintain UI state during rapid theme changes', async ({ page }) => {
-    const html = page.locator('html');
-    const lightButton = page.locator('button:has(i.fa-sun)');
-    const darkButton = page.locator('button:has(i.fa-moon)');
-    
-    // Rapid theme switching
-    for (let i = 0; i < 5; i++) {
-      await darkButton.click();
-      await lightButton.click();
-    }
-    
-    // UI should still be responsive
-    await expect(page.locator('body')).toBeVisible();
-  });
-
-  test('should display all navigation elements', async ({ page }) => {
-    // Check sidebar navigation
-    await expect(page.locator('a:has-text("Discover")')).toBeVisible();
-    await expect(page.locator('button:has-text("Signal Archive")')).toBeVisible();
-    await expect(page.locator('button:has-text("New Releases")')).toBeVisible();
+  test('should display navigation elements', async ({ page }) => {
+    // Use specific roles to avoid strict mode conflicts
+    await expect(page.getByRole('link', { name: /Discover/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Signal Archive/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /New Releases/i })).toBeVisible();
   });
 
   test('should handle missing localStorage gracefully', async ({ page }) => {

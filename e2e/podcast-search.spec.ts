@@ -5,7 +5,7 @@ test.describe('Podcast Search and Subscription', () => {
     await page.goto('/');
     
     // Find and interact with search input
-    const searchInput = page.getByRole('textbox', { name: /Explore/i });
+    const searchInput = page.getByTestId('search-input');
     await expect(searchInput).toBeVisible();
     
     // Type search query
@@ -36,7 +36,7 @@ test.describe('Podcast Search and Subscription', () => {
   test('should handle search with no results gracefully', async ({ page }) => {
     await page.goto('/');
     
-    const searchInput = page.getByRole('textbox', { name: /Explore/i });
+    const searchInput = page.getByTestId('search-input');
     await searchInput.fill('xyzabc123nonexistentpodcast9999');
     
     // Should not crash, should handle empty results
@@ -46,7 +46,7 @@ test.describe('Podcast Search and Subscription', () => {
   test('should clear search results when input cleared', async ({ page }) => {
     await page.goto('/');
     
-    const searchInput = page.getByRole('textbox', { name: /Explore/i });
+    const searchInput = page.getByTestId('search-input');
     
     // Type search
     await searchInput.fill('tech');
@@ -69,7 +69,7 @@ test.describe('Podcast Search and Subscription', () => {
     // Navigate back to Discover
     const discoverLink = page.locator('a:has-text("Discover")');
     await discoverLink.click();
-    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
+    await expect(page.locator('h2:has-text("Discover"), input[data-testid="search-input"]')).toBeVisible({ timeout: 10000 });
     
     // Navigate to New Releases
     const newReleasesButton = page.locator('button:has-text("New Releases")');
@@ -81,7 +81,7 @@ test.describe('Podcast Search and Subscription', () => {
     await page.goto('/');
     
     // Search for something
-    const searchInput = page.getByRole('textbox', { name: /Explore/i });
+    const searchInput = page.getByTestId('search-input');
     await searchInput.fill('javascript');
     
     // Navigate away

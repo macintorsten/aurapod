@@ -27,7 +27,14 @@ export class StorageService {
 
   getPodcasts(): Podcast[] {
     const data = this.storage.getItem(STORAGE_KEYS.PODCASTS);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.warn('Failed to parse stored podcasts, clearing corrupted data', error);
+      this.storage.removeItem(STORAGE_KEYS.PODCASTS);
+      return [];
+    }
   }
 
   savePodcasts(podcasts: Podcast[]): void {
@@ -36,7 +43,14 @@ export class StorageService {
 
   getHistory(): Record<string, PlaybackState> {
     const data = this.storage.getItem(STORAGE_KEYS.HISTORY);
-    return data ? JSON.parse(data) : {};
+    if (!data) return {};
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.warn('Failed to parse stored history, clearing corrupted data', error);
+      this.storage.removeItem(STORAGE_KEYS.HISTORY);
+      return {};
+    }
   }
 
   saveHistory(history: Record<string, PlaybackState>): void {
@@ -53,7 +67,14 @@ export class StorageService {
 
   getQueue(): Episode[] {
     const data = this.storage.getItem(STORAGE_KEYS.QUEUE);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.warn('Failed to parse stored queue, clearing corrupted data', error);
+      this.storage.removeItem(STORAGE_KEYS.QUEUE);
+      return [];
+    }
   }
 
   saveQueue(queue: Episode[]): void {

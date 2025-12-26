@@ -43,6 +43,8 @@ export const HomePage: React.FC<HomePageProps> = ({
           <input
             type="text"
             placeholder="Explore millions of frequencies..."
+            data-testid="search-input"
+            aria-label="Explore"
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}
             className="w-full bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-5 pl-14 pr-6 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-400 text-lg shadow-sm"
@@ -53,6 +55,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             {searchResults.map((result) => (
               <div
                 key={result.id}
+                data-testid="search-result-card"
                 onClick={() => handlePodcastSelect(result)}
                 className="group cursor-pointer flex flex-col"
               >

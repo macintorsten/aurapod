@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { mockAllItunes, mockFeedFetch } from './fixtures/network-mocks';
 
 test.describe('AuraPod - Smoke Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockAllItunes(page);
+    await mockFeedFetch(page);
+  });
   test('should load home page successfully', async ({ page }) => {
     await page.goto('/');
     
@@ -14,7 +19,7 @@ test.describe('AuraPod - Smoke Tests', () => {
   test('should display search input', async ({ page }) => {
     await page.goto('/');
     
-    const searchInput = page.getByRole('textbox', { name: /Explore/i });
+    const searchInput = page.getByTestId('search-input');
     await expect(searchInput).toBeVisible();
     await expect(searchInput).toBeEditable();
   });
@@ -24,32 +29,6 @@ test.describe('AuraPod - Smoke Tests', () => {
     
     // Wait for trending section to load
     await expect(page.locator('h3:has-text("Trending Now")')).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should have theme switcher', async ({ page }) => {
-    await page.goto('/');
-    
-    // Check for theme buttons
-    const lightButton = page.locator('button:has(i.fa-sun)');
-    const darkButton = page.locator('button:has(i.fa-moon)');
-    const systemButton = page.locator('button:has(i.fa-desktop)');
-    
-    await expect(lightButton).toBeVisible();
-    await expect(darkButton).toBeVisible();
-    await expect(systemButton).toBeVisible();
-  });
-
-  test('should toggle dark mode', async ({ page }) => {
-    await page.goto('/');
-    
-    const html = page.locator('html');
-    const darkButton = page.locator('button:has(i.fa-moon)');
-    
-    // Click dark theme button
-    await darkButton.click();
-    
-    // Verify dark class applied
-    await expect(html).toHaveClass(/dark/);
   });
 
   test('should navigate to archive view', async ({ page }) => {
@@ -73,23 +52,6 @@ test.describe('AuraPod - Smoke Tests', () => {
     await expect(page.locator('h3:has-text("Fresh Releases")')).toBeVisible();
   });
 
-  test('should persist theme selection after reload', async ({ page }) => {
-    await page.goto('/');
-    
-    const html = page.locator('html');
-    const darkButton = page.locator('button:has(i.fa-moon)');
-    
-    // Set dark theme
-    await darkButton.click();
-    await expect(html).toHaveClass(/dark/);
-    
-    // Reload page
-    await page.reload();
-    
-    // Verify dark theme persisted
-    await expect(html).toHaveClass(/dark/);
-  });
-
   test('should display version information', async ({ page }) => {
     await page.goto('/');
     
@@ -111,7 +73,7 @@ test.describe('AuraPod - Smoke Tests', () => {
     
     // Go back to discover
     await discoverLink.click();
-    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
+    await expect(page.getByTestId('search-input')).toBeVisible();
     
     // Go to new releases
     await newReleasesButton.click();

@@ -4,7 +4,9 @@ import { shareService, Feed } from '../src/services/shareService';
 test.describe('Shared Content - Virtual Podcasts', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
+    // Wait for either search input or the "Discover" heading to be visible
+    // This handles both the trending podcasts loading and initial render
+    await expect(page.locator('h2:has-text("Discover"), input[data-testid="search-input"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('should display shared single track as virtual podcast', async ({ page }) => {

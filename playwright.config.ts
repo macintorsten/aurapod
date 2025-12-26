@@ -11,8 +11,8 @@ export default defineConfig({
   workers: isCI ? 1 : undefined,
   timeout: 30 * 1000, // 30 seconds per test
   reporter: isCI 
-    ? [['html'], ['github']]
-    : [['html'], ['list']],
+    ? [['github'], ['html', { open: 'never' }]]
+    : [['list'], ['html', { open: 'never' }]],
   
   use: {
     baseURL,

@@ -34,3 +34,5 @@ applyTo: ".github/**/*.{md,instructions.md}"
 - [tests.instructions.md](tests.instructions.md) - 12 lines, actionable, minimal
 
 Each: brief, actionable, references skills/files.
+
+<!-- Operational policies belong in domain instructions (e.g., tests.instructions.md). Keep this file focused on how to write instructions/skills. -->

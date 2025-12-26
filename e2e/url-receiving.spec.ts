@@ -4,7 +4,8 @@ test.describe('URL Receiving - Share Modes', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to home first
     await page.goto('/');
-    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
+    // Wait for either search input or the "Discover" heading to be visible
+    await expect(page.locator('h2:has-text("Discover"), input[data-testid="search-input"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('should handle frequency mode URL (RSS feed only)', async ({ page }) => {

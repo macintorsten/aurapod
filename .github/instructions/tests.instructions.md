@@ -24,4 +24,10 @@ applyTo: "**/*.test.{ts,tsx}|**/*.config.{ts,js}|.github/workflows/*.yml|package
 - `npm run test:unused` - Dead code detection (ts-prune)
 - ❌ NEVER: `test:watch`, `test:e2e:ui` (require interaction)
 
+**Non-Interactive Execution** (agents only):
+- Do not run commands that block or serve indefinitely (no `test:watch`, preview servers, etc.).
+- Playwright HTML reporter must not auto-open; rely on config `open: 'never'`.
+- In CI, use `npm run test:all` (exits immediately); avoid `--ui`.
+- If a command could hang, output the command for the user instead of executing it.
+
 **Reference**: See `TESTING_GUIDE.md` for patterns.
