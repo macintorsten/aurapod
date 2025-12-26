@@ -14,56 +14,59 @@ export interface DiscoveryProvider {
 }
 
 /**
- * Robust fetch helper that cycles through configured proxies on failure
+ * Create a fetch function with proxy fallback capability
+ * Exported for use in factory and potential reuse
  */
-const fetchWithProxy = async (targetUrl: string, isJson: boolean = false): Promise<string | any> => {
-  const sanitizedUrl = targetUrl.trim();
-  const failures: string[] = [];
-  
-  // Try direct fetch first for speed
-  try {
-    const directRes = await fetch(sanitizedUrl, { signal: AbortSignal.timeout(3000) });
-    if (directRes.ok) return isJson ? await directRes.json() : await directRes.text();
-    failures.push(`Direct: ${directRes.status} ${directRes.statusText}`);
-  } catch (e: any) {
-    failures.push(`Direct: ${e.message || 'Blocked/Timeout'}`);
-  }
-
-  for (const proxyBase of APP_CONFIG.proxyUrls) {
+export const createFetchWithProxy = (fetchFn: typeof fetch = fetch) => {
+  return async (targetUrl: string, isJson: boolean = false): Promise<string | any> => {
+    const sanitizedUrl = targetUrl.trim();
+    const failures: string[] = [];
+    
+    // Try direct fetch first for speed
     try {
-      const proxyUrl = `${proxyBase}${encodeURIComponent(sanitizedUrl)}`;
-      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-      
-      if (!response.ok) {
-        failures.push(`${proxyBase}: HTTP ${response.status}`);
-        continue;
-      }
+      const directRes = await fetchFn(sanitizedUrl, { signal: AbortSignal.timeout(3000) });
+      if (directRes.ok) return isJson ? await directRes.json() : await directRes.text();
+      failures.push(`Direct: ${directRes.status} ${directRes.statusText}`);
+    } catch (e: any) {
+      failures.push(`Direct: ${e.message || 'Blocked/Timeout'}`);
+    }
 
-      // Handle AllOrigins specific JSON wrapper
-      if (proxyBase.includes('allorigins')) {
-        const data = await response.json();
-        const content = data.contents;
-        if (!content) {
-          failures.push(`${proxyBase}: Empty wrapper contents`);
+    for (const proxyBase of APP_CONFIG.proxyUrls) {
+      try {
+        const proxyUrl = `${proxyBase}${encodeURIComponent(sanitizedUrl)}`;
+        const response = await fetchFn(proxyUrl, { signal: AbortSignal.timeout(10000) });
+        
+        if (!response.ok) {
+          failures.push(`${proxyBase}: HTTP ${response.status}`);
           continue;
         }
-        return isJson ? (typeof content === 'string' ? JSON.parse(content) : content) : content;
-      }
 
-      return isJson ? await response.json() : await response.text();
-    } catch (err: any) {
-      failures.push(`${proxyBase}: ${err.message || 'Error'}`);
-      continue;
+        // Handle AllOrigins specific JSON wrapper
+        if (proxyBase.includes('allorigins')) {
+          const data = await response.json();
+          const content = data.contents;
+          if (!content) {
+            failures.push(`${proxyBase}: Empty wrapper contents`);
+            continue;
+          }
+          return isJson ? (typeof content === 'string' ? JSON.parse(content) : content) : content;
+        }
+
+        return isJson ? await response.json() : await response.text();
+      } catch (err: any) {
+        failures.push(`${proxyBase}: ${err.message || 'Error'}`);
+        continue;
+      }
     }
-  }
-  
-  const error = new Error(`Connection failed. Exhausted all available retrieval methods.`);
-  (error as any).diagnostics = {
-    url: sanitizedUrl,
-    attempts: failures,
-    timestamp: new Date().toISOString()
+    
+    const error = new Error(`Connection failed. Exhausted all available retrieval methods.`);
+    (error as any).diagnostics = {
+      url: sanitizedUrl,
+      attempts: failures,
+      timestamp: new Date().toISOString()
+    };
+    throw error;
   };
-  throw error;
 };
 
 /**
@@ -99,8 +102,9 @@ const getTagAttr = (parent: Element | Document, tagName: string, attr: string): 
 
 /**
  * Formats the raw XML string into our Podcast/Episode objects.
+ * Exported for potential reuse and testing
  */
-const parseRssXml = (text: string, originalUrl: string): { podcast: Podcast, episodes: Episode[] } => {
+export const parseRssXml = (text: string, originalUrl: string): { podcast: Podcast, episodes: Episode[] } => {
   const parser = new DOMParser();
   const xml = parser.parseFromString(text, "text/xml");
   
@@ -164,11 +168,17 @@ const parseRssXml = (text: string, originalUrl: string): { podcast: Podcast, epi
  * Default Implementation using iTunes API
  */
 class ItunesProvider implements SearchProvider, DiscoveryProvider {
+  private fetchWithProxy: ReturnType<typeof createFetchWithProxy>;
+
+  constructor(fetchWithProxy?: ReturnType<typeof createFetchWithProxy>) {
+    this.fetchWithProxy = fetchWithProxy || createFetchWithProxy();
+  }
+
   async search(term: string): Promise<Podcast[]> {
     if (!term || term.length < 2) return [];
     try {
       const url = `${APP_CONFIG.providers.itunes.searchUrl}?term=${encodeURIComponent(term)}&entity=podcast&limit=15`;
-      const data = await fetchWithProxy(url, true);
+      const data = await this.fetchWithProxy(url, true);
       return data.results.map((item: any) => ({
         id: item.collectionId.toString(),
         title: item.collectionName,
@@ -186,7 +196,7 @@ class ItunesProvider implements SearchProvider, DiscoveryProvider {
   async getTrending(): Promise<Podcast[]> {
     try {
       const trendingUrl = APP_CONFIG.providers.itunes.trendingUrl;
-      const data = await fetchWithProxy(trendingUrl, true);
+      const data = await this.fetchWithProxy(trendingUrl, true);
 
       const entries = data.feed?.entry || [];
       const ids = entries.map((e: any) => e.id.attributes['im:id']).join(',');
@@ -194,7 +204,7 @@ class ItunesProvider implements SearchProvider, DiscoveryProvider {
       if (!ids) return [];
 
       const lookupUrl = `${APP_CONFIG.providers.itunes.lookupUrl}?id=${ids}`;
-      const lookupData = await fetchWithProxy(lookupUrl, true);
+      const lookupData = await this.fetchWithProxy(lookupUrl, true);
       
       return lookupData.results.map((item: any) => ({
         id: item.collectionId.toString(),
@@ -211,14 +221,60 @@ class ItunesProvider implements SearchProvider, DiscoveryProvider {
   }
 }
 
-const defaultProvider = new ItunesProvider();
+/**
+ * RSS Service interface for dependency injection
+ */
+export interface RssService {
+  searchPodcasts: (term: string) => Promise<Podcast[]>;
+  getTrendingPodcasts: () => Promise<Podcast[]>;
+  fetchPodcast: (url: string) => Promise<{ podcast: Podcast; episodes: Episode[] }>;
+}
 
-export const rssService = {
-  searchPodcasts: (term: string) => defaultProvider.search(term),
-  getTrendingPodcasts: () => defaultProvider.getTrending(),
+/**
+ * Dependencies for creating RSS service
+ */
+export interface RssServiceDependencies {
+  /** Fetch function for network requests (injectable for testing) */
+  fetchFn?: typeof fetch;
+  /** Provider for podcast search and discovery */
+  provider?: SearchProvider & DiscoveryProvider;
+}
 
-  fetchPodcast: async (url: string): Promise<{ podcast: Podcast, episodes: Episode[] }> => {
-    const text = await fetchWithProxy(url, false);
-    return parseRssXml(text, url);
-  }
+/**
+ * Factory function for creating RSS service with dependency injection
+ * 
+ * @param deps - Optional dependencies to inject
+ * @returns RssService instance
+ * 
+ * @example
+ * ```typescript
+ * // For testing with mocks
+ * const mockRssService = createRssService({
+ *   fetchFn: vi.fn().mockResolvedValue(mockResponse),
+ *   provider: mockProvider
+ * });
+ * 
+ * // For production with defaults
+ * const rssService = createRssService();
+ * ```
+ */
+export const createRssService = (deps?: RssServiceDependencies): RssService => {
+  const fetchWithProxy = createFetchWithProxy(deps?.fetchFn);
+  const provider = deps?.provider || new ItunesProvider(fetchWithProxy);
+
+  return {
+    searchPodcasts: (term: string) => provider.search(term),
+    getTrendingPodcasts: () => provider.getTrending(),
+
+    fetchPodcast: async (url: string): Promise<{ podcast: Podcast; episodes: Episode[] }> => {
+      const text = await fetchWithProxy(url, false);
+      return parseRssXml(text, url);
+    }
+  };
 };
+
+/**
+ * Default RSS service instance for production use
+ * Uses real fetch and iTunes provider
+ */
+export const rssService = createRssService();

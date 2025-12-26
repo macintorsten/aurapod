@@ -22,7 +22,7 @@
  * @see TESTING_GUIDE.md for testing patterns using this container
  */
 
-import type { rssService } from './rssService';
+import type { RssService } from './rssService';
 import type { storageService } from './storageService';
 import type { castService } from './castService';
 import type * as packt from '../lib/packt';
@@ -35,7 +35,7 @@ import type * as packt from '../lib/packt';
  */
 export interface ServiceContainer {
   /** Service for fetching and parsing RSS feeds */
-  rssService: typeof rssService;
+  rssService: RssService;
   /** Service for browser localStorage management */
   storageService: typeof storageService;
   /** Service for playback history and bookmarks */
