@@ -185,10 +185,19 @@ npm run test:unit   # Pre-commit
 ## Commands
 
 ```bash
-npm run test:unit      # Run once
-npm run test:watch     # Watch mode
-npm run test:e2e       # End-to-end tests
+npm run test          # Run unit tests once
+npm run test:unit     # Unit tests with coverage
+npm run test:ci       # Unit + unused code check (mirrors CI)
+npm run test:all      # Full suite: unit + unused + e2e (mirrors CI completely)
+npm run test:unused   # Detect unused exports (ts-prune)
+npm run test:watch    # Watch mode (interactive, development only)
+npm run test:e2e      # E2E tests
+npm run test:e2e:ui   # E2E with UI (interactive, development only)
 ```
+
+**For AI agents**: Always use non-interactive commands (`test:ci`, `test:all`) to avoid hanging.
+
+**Local CI mirror**: Run `npm run test:ci` before pushing to catch issues early.
 
 ---
 

@@ -12,6 +12,9 @@
     "test:e2e": "npm run build && playwright test",
     "test:e2e:ui": "npm run build && playwright test --ui",
     "test:watch": "vitest watch",
+    "test:unused": "ts-prune",
+    "test:ci": "npm run test:unit && npm run test:unused",
+    "test:all": "npm run test:ci && npm run test:e2e",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -45,6 +48,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
+      "tsc --noEmit --skipLibCheck",
       "vitest related --run --passWithNoTests"
     ]
   }

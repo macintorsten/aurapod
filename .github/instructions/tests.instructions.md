@@ -1,7 +1,7 @@
 ---
 name: Test File Instructions
 description: Testing patterns and TDD workflow
-applyTo: "**/*.test.{ts,tsx}"
+applyTo: "**/*.test.{ts,tsx}|**/*.config.{ts,js}|.github/workflows/*.yml|package.json"
 ---
 
 # Testing Patterns
@@ -16,4 +16,11 @@ applyTo: "**/*.test.{ts,tsx}"
 
 **Hook Tests**: Use `renderHook()` from `@testing-library/react`. Wrap state updates in `act()`.
 
-**Reference**: See `TESTING_GUIDE.md` for detailed patterns and examples.
+**Test Commands** (non-interactive only):
+- `npm run test:unit` - Unit tests + coverage
+- `npm run test:ci` - Unit + unused code (mirrors CI)
+- `npm run test:all` - Full suite: unit + unused + e2e
+- `npm run test:unused` - Dead code detection (ts-prune)
+- ❌ NEVER: `test:watch`, `test:e2e:ui` (require interaction)
+
+**Reference**: See `TESTING_GUIDE.md` for patterns.

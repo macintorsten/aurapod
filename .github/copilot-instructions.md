@@ -13,6 +13,11 @@ Before implementing any feature, check available skills in `.github/skills/`. Us
 - **State**: Use React Context for cross-cutting concerns (see `src/contexts/`)
 - **Testing**: Test in isolation without full app setup (see `TESTING_GUIDE.md`)
 
+## Code Quality
+- Run `npm run test:unused` to detect dead code (warns about unused exports)
+- AI agents should review ts-prune warnings and remove unused code
+- Pre-commit hooks run type checking + related tests automatically
+
 ## Conventions
 - TypeScript strict mode enabled
 - Co-locate tests with source in `__tests__/` directories

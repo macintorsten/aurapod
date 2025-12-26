@@ -26,6 +26,9 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
+      - name: Check for unused code
+        run: npm run test:unused
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
