@@ -55,6 +55,9 @@ export function parseDuration(durationStr: string): number {
 
   try {
     const parts = durationStr.split(":").map(Number);
+    
+    // Validate that all parts are valid numbers
+    if (parts.some(isNaN)) return 0;
 
     if (parts.length === 3) {
       // HH:MM:SS

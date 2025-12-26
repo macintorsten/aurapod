@@ -101,13 +101,7 @@ describe('formatters', () => {
       expect(parseDuration('00:00')).toBe(0);
     });
 
-    // DISABLED: This test asserts CORRECT behavior
-    // See KNOWN_BUGS.md for details
-    // Once fixed, update assertion to expect 0
-    it.skip('BUG: should return 0 for invalid non-numeric format', () => {
-      // BUG: parseDuration doesn't handle non-numeric strings properly
-      // Currently returns: NaN (from Number('invalid'))
-      // Should return: 0
+    it('should return 0 for invalid non-numeric format', () => {
       expect(parseDuration('invalid')).toBe(0);
     });
   });
