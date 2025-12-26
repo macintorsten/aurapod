@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { 
-  SharedData, 
+  Feed,
+  Track,
+  ShareData,
   shareService, 
   ShareType, 
   ShareMode, 
-  FilterOptions 
+  FilterOptions
 } from "../../services/shareService";
+import { rssService } from "../../services/rssService";
 import { Podcast, Episode } from "../../types";
 
 interface ShareModalProps {
@@ -26,94 +29,197 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     if (shareType === 'track') {
       return podcast?.feedUrl ? 'wave-source' : 'embedded-payload';
     }
-    return 'frequency';
+    return 'rss-source';
   });
 
   // RSS manifest options
   const [episodeCount, setEpisodeCount] = useState(10);
+  const [maxEpisodes, setMaxEpisodes] = useState(50);
+  const [compressionMode, setCompressionMode] = useState<'full' | 'auto' | 'minimal'>('auto');
   const [filters, setFilters] = useState<FilterOptions>({
     includeDescriptions: true,
     includeImages: true,
     includeDatesAndDurations: true,
+    compressionMode: 'auto',
   });
   const [isLoadingRss, setIsLoadingRss] = useState(false);
-  const [rssEpisodes, setRssEpisodes] = useState<any[]>([]);
+  const [rssTracks, setRssTracks] = useState<Track[]>([]);
+  const [rssError, setRssError] = useState<string | null>(null);
 
   const [copied, setCopied] = useState(false);
 
-  // Load optimal filters when switching to full-manifest mode
+  // Load tracks and calculate max episodes when switching to embedded-payload mode FOR FREQUENCY TYPE
   useEffect(() => {
-    if (shareMode === 'full-manifest' && podcast?.feedUrl) {
+    if (shareType === 'frequency' && shareMode === 'embedded-payload' && podcast?.feedUrl) {
+      const abortController = new AbortController();
       setIsLoadingRss(true);
+      setRssError(null);
+      
+      // Calculate max episodes that fit
       shareService
-        .calculateOptimalFilters(
+        .calculateMaxEpisodes(
           podcast.feedUrl,
-          episodeCount,
+          filters,
           podcast.title,
           podcast.image,
           podcast.description
         )
-        .then((result) => {
-          setFilters(result.filters);
-          setRssEpisodes(result.episodes);
+        .then(async (result: { maxEpisodes: number; totalEpisodes: number }) => {
+          if (abortController.signal.aborted) return;
+          
+          setMaxEpisodes(result.maxEpisodes);
+          // Set episode count to max or current, whichever is smaller
+          const newCount = Math.min(episodeCount, result.maxEpisodes);
+          if (newCount !== episodeCount) {
+            setEpisodeCount(newCount);
+          }
+          
+          // Load actual tracks from RSS
+          const { podcast: podcastData, episodes } = await rssService.fetchPodcast(podcast.feedUrl);
+          if (abortController.signal.aborted) return;
+          
+          const tracks: Track[] = episodes.slice(0, newCount).map(ep => ({
+            title: ep.title || null,
+            url: ep.audioUrl || null,
+            description: shareService.sanitizeDescription(ep.description) || null,
+            date: ep.pubDate ? Math.floor(new Date(ep.pubDate).getTime() / 1000) : null,
+            duration: ep.duration ? shareService.parseDuration(ep.duration) : null,
+          }));
+          
+          setRssTracks(tracks);
           setIsLoadingRss(false);
         })
-        .catch((err) => {
+        .catch((err: Error) => {
+          if (abortController.signal.aborted) return;
           console.error('Failed to load RSS manifest:', err);
+          setRssError('Failed to load podcast feed. Please try again.');
           setIsLoadingRss(false);
         });
+      
+      return () => {
+        abortController.abort();
+      };
     }
-  }, [shareMode, episodeCount, podcast]);
+  }, [shareMode, podcast, shareType]);
+
+  // Reload tracks when episode count changes (ONLY FOR FREQUENCY TYPE) - with debouncing
+  useEffect(() => {
+    if (shareType === 'frequency' && shareMode === 'embedded-payload' && podcast?.feedUrl && !isLoadingRss && rssTracks.length > 0) {
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        rssService.fetchPodcast(podcast.feedUrl)
+          .then(({ episodes }) => {
+            if (abortController.signal.aborted) return;
+            
+            const tracks: Track[] = episodes.slice(0, episodeCount).map(ep => ({
+              title: ep.title || null,
+              url: ep.audioUrl || null,
+              description: shareService.sanitizeDescription(ep.description) || null,
+              date: ep.pubDate ? Math.floor(new Date(ep.pubDate).getTime() / 1000) : null,
+              duration: ep.duration ? shareService.parseDuration(ep.duration) : null,
+            }));
+            setRssTracks(tracks);
+          })
+          .catch((err) => {
+            if (abortController.signal.aborted) return;
+            console.error('Failed to reload tracks:', err);
+            setRssError('Failed to update episode count.');
+          });
+      }, 300);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        abortController.abort();
+      };
+    }
+  }, [episodeCount]);
 
   // Generate current share data
-  const currentShareData = useMemo((): SharedData => {
+  const currentShareData = useMemo((): ShareData | null => {
     if (shareType === 'track') {
       if (shareMode === 'wave-source' && podcast && episode) {
         return {
+          feed: {
+            title: podcast.title || null,
+            description: podcast.description || null,
+            url: podcast.feedUrl || null,
+            tracks: [],
+          },
           shareType: 'track',
           shareMode: 'wave-source',
-          p: podcast.feedUrl,
-          e: episode.id,
+          episodeId: episode.id,
         };
       } else if (shareMode === 'embedded-payload' && episode) {
         return {
+          feed: {
+            title: podcast?.title || episode.podcastTitle || null,
+            description: null,
+            url: null,
+            tracks: [{
+              title: episode.title || null,
+              url: episode.audioUrl || null,
+              description: shareService.sanitizeDescription(episode.description) || null,
+              date: null,
+              duration: null,
+            }],
+          },
           shareType: 'track',
           shareMode: 'embedded-payload',
-          t: episode.title,
-          u: episode.audioUrl,
-          i: episode.image || podcast?.image,
-          d: shareService.sanitizeDescription(episode.description),
-          st: podcast?.title || episode.podcastTitle,
-          si: podcast?.image || episode.podcastImage,
         };
       }
-    } else if (shareType === 'rss' && podcast) {
-      if (shareMode === 'frequency') {
+    } else if (shareType === 'frequency' && podcast) {
+      if (shareMode === 'rss-source') {
         return {
-          shareType: 'rss',
-          shareMode: 'frequency',
-          p: podcast.feedUrl,
+          feed: {
+            title: podcast.title || null,
+            description: podcast.description || null,
+            url: podcast.feedUrl || null,
+            tracks: [],
+          },
+          shareType: 'frequency',
+          shareMode: 'rss-source',
         };
-      } else if (shareMode === 'full-manifest') {
-        const filteredEpisodes = shareService.applyFilters(rssEpisodes, filters);
+      } else if (shareMode === 'embedded-payload') {
+        // Return loading state instead of null when tracks are still loading
+        if (isLoadingRss || rssTracks.length === 0) {
+          // Return minimal valid share data during loading
+          return {
+            feed: {
+              title: podcast.title || null,
+              description: podcast.description ? shareService.sanitizeDescription(podcast.description) : null,
+              url: podcast.feedUrl || null,
+              tracks: [],
+            },
+            shareType: 'frequency',
+            shareMode: 'embedded-payload',
+          };
+        }
+        const filteredTracks = shareService.applyFilters(rssTracks, filters);
         return {
-          shareType: 'rss',
-          shareMode: 'full-manifest',
-          p: podcast.feedUrl,
-          pt: podcast.title,
-          pi: podcast.image,
-          pd: shareService.sanitizeDescription(podcast.description),
-          episodes: filteredEpisodes,
+          feed: {
+            title: podcast.title || null,
+            description: podcast.description ? shareService.sanitizeDescription(podcast.description) : null,
+            url: podcast.feedUrl || null,
+            tracks: filteredTracks,
+          },
+          shareType: 'frequency',
+          shareMode: 'embedded-payload',
         };
       }
     }
-    return {};
-  }, [shareType, shareMode, podcast, episode, rssEpisodes, filters]);
+    return null;
+  }, [shareType, shareMode, podcast, episode, rssTracks, filters]);
 
   // Generate URL
   const { url, length, isTooLong, payloadLength, warning } = useMemo(() => {
-    return shareService.generateUrl(currentShareData);
-  }, [currentShareData]);
+    if (!currentShareData) {
+      return { url: '', length: 0, isTooLong: false, payloadLength: 0 };
+    }
+    return shareService.generateUrl(currentShareData, {
+      compressionMode,
+      removeImages: !filters.includeImages,
+    });
+  }, [currentShareData, filters, compressionMode]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url);
@@ -123,6 +229,11 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   const handleFilterChange = (key: keyof FilterOptions) => {
     setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCompressionModeChange = (mode: 'full' | 'auto' | 'minimal') => {
+    setCompressionMode(mode);
+    setFilters(prev => ({ ...prev, compressionMode: mode }));
   };
 
   const displayTitle = episode?.title || podcast?.title || 'Wave';
@@ -180,12 +291,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   <span className={`shrink-0 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide ${
                     shareMode === 'wave-source' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
                     shareMode === 'embedded-payload' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' :
-                    shareMode === 'frequency' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
+                    shareMode === 'rss-source' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' :
                     'bg-purple-500/10 text-purple-600 dark:text-purple-400'
                   }`}>
                     {shareMode === 'wave-source' ? '📡 RSS' :
                      shareMode === 'embedded-payload' ? '📦 Embed' :
-                     shareMode === 'frequency' ? '📻 Freq' :
+                     shareMode === 'rss-source' ? '📻 Freq' :
                      '📋 Full'}
                   </span>
                 </div>
@@ -227,21 +338,21 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           ) : (
             <div className="flex gap-3">
               <button
-                onClick={() => setShareMode('frequency')}
+                onClick={() => setShareMode('rss-source')}
                 className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
-                  shareMode === 'frequency'
+                  shareMode === 'rss-source'
                     ? 'border-indigo-500 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-300'
                 }`}
               >
                 <i className="fa-solid fa-signal text-sm"></i>
-                <span className="text-sm font-semibold">Frequency</span>
+                <span className="text-sm font-semibold">Frequency Only</span>
               </button>
               
               <button
-                onClick={() => setShareMode('full-manifest')}
+                onClick={() => setShareMode('embedded-payload')}
                 className={`flex-1 p-4 rounded-xl border transition flex items-center justify-center gap-2 ${
-                  shareMode === 'full-manifest'
+                  shareMode === 'embedded-payload'
                     ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400'
                     : 'border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-purple-300'
                 }`}
@@ -252,8 +363,31 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
           )}
 
+          {/* Error message */}
+          {rssError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+              <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5"></i>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-900 dark:text-red-200">{rssError}</p>
+                <button
+                  onClick={() => {
+                    setRssError(null);
+                    // Trigger reload by toggling loading state
+                    if (shareType === 'frequency' && shareMode === 'embedded-payload' && podcast?.feedUrl) {
+                      setShareMode('rss-source');
+                      setTimeout(() => setShareMode('embedded-payload'), 0);
+                    }
+                  }}
+                  className="mt-2 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium underline"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* RSS Manifest Options */}
-          {shareType === 'rss' && shareMode === 'full-manifest' && (
+          {shareType === 'frequency' && shareMode === 'embedded-payload' && (
             <div className="space-y-4 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-6 border border-zinc-100 dark:border-zinc-800">
               {/* Episode Count & Loading in one row */}
               <div className="flex items-center gap-4">
@@ -263,13 +397,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       Episodes
                     </label>
                     <span className="text-sm font-mono text-indigo-500 font-bold">
-                      {episodeCount}
+                      {episodeCount} / {maxEpisodes}
                     </span>
                   </div>
                   <input
                     type="range"
                     min="1"
-                    max="50"
+                    max={maxEpisodes}
                     value={episodeCount}
                     onChange={(e) => setEpisodeCount(Number(e.target.value))}
                     className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
@@ -281,61 +415,95 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               </div>
 
               {/* Field Toggles - Horizontal with icons */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mr-1">Include:</span>
-                <label 
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
-                    filters.includeDescriptions 
-                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
-                      : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
-                  }`}
-                  title="Episode descriptions"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.includeDescriptions}
-                    onChange={() => handleFilterChange('includeDescriptions')}
-                    className="hidden"
-                  />
-                  <i className="fa-solid fa-align-left text-xs"></i>
-                  <span className="text-xs font-medium">Desc</span>
-                </label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 mr-1">Include:</span>
+                  <label 
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
+                      filters.includeDescriptions 
+                        ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
+                        : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
+                    }`}
+                    title="Episode descriptions"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filters.includeDescriptions}
+                      onChange={() => handleFilterChange('includeDescriptions')}
+                      className="hidden"
+                    />
+                    <i className="fa-solid fa-align-left text-xs"></i>
+                    <span className="text-xs font-medium">Desc</span>
+                  </label>
+                  
+                  <label 
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
+                      filters.includeImages 
+                        ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
+                        : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
+                    }`}
+                    title="Episode images"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filters.includeImages}
+                      onChange={() => handleFilterChange('includeImages')}
+                      className="hidden"
+                    />
+                    <i className="fa-solid fa-image text-xs"></i>
+                    <span className="text-xs font-medium">Img</span>
+                  </label>
+                  
+                  <label 
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
+                      filters.includeDatesAndDurations 
+                        ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
+                        : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
+                    }`}
+                    title="Publication dates and durations"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={filters.includeDatesAndDurations}
+                      onChange={() => handleFilterChange('includeDatesAndDurations')}
+                      className="hidden"
+                    />
+                    <i className="fa-solid fa-clock text-xs"></i>
+                    <span className="text-xs font-medium">Time</span>
+                  </label>
+                </div>
                 
-                <label 
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
-                    filters.includeImages 
-                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
-                      : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
-                  }`}
-                  title="Episode images"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.includeImages}
-                    onChange={() => handleFilterChange('includeImages')}
-                    className="hidden"
-                  />
-                  <i className="fa-solid fa-image text-xs"></i>
-                  <span className="text-xs font-medium">Img</span>
-                </label>
-                
-                <label 
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition ${
-                    filters.includeDatesAndDurations 
-                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' 
-                      : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800'
-                  }`}
-                  title="Publication dates and durations"
-                >
-                  <input
-                    type="checkbox"
-                    checked={filters.includeDatesAndDurations}
-                    onChange={() => handleFilterChange('includeDatesAndDurations')}
-                    className="hidden"
-                  />
-                  <i className="fa-solid fa-clock text-xs"></i>
-                  <span className="text-xs font-medium">Time</span>
-                </label>
+                {/* Compression mode options */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Compression:</span>
+                  <button
+                    onClick={() => handleCompressionModeChange('full')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      compressionMode === 'full' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    }`}
+                    title="Full size, best quality"
+                  >
+                    Full
+                  </button>
+                  <button
+                    onClick={() => handleCompressionModeChange('auto')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      compressionMode === 'auto' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    }`}
+                    title="Adaptive compression for most platforms"
+                  >
+                    Auto
+                  </button>
+                  <button
+                    onClick={() => handleCompressionModeChange('minimal')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                      compressionMode === 'minimal' ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400' : 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                    }`}
+                    title="Minimal size for short URLs"
+                  >
+                    Minimal
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -367,9 +535,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             
             <button
               onClick={handleCopy}
+              disabled={isLoadingRss || !url}
               className={`w-full py-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 ${
                 copied
                   ? "bg-green-500 text-white"
+                  : isLoadingRss || !url
+                  ? "bg-zinc-300 dark:bg-zinc-700 text-zinc-500 cursor-not-allowed"
                   : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
               }`}
             >

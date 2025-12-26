@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { HashRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { Podcast, Episode, PlaybackState } from "./types";
 import { rssService } from "./services/rssService";
-import { shareService, SharedData } from "./services/shareService";
+import { shareService, Feed, ShareType } from "./services/shareService";
 import { storageService } from "./services/storageService";
 import Player from "./components/Player";
 import { useQueue } from "./hooks/useQueue";
@@ -54,7 +54,7 @@ const AppContent: React.FC = () => {
   } = useUIContext();
 
   const [shareModalData, setShareModalData] = useState<{
-    shareType: 'track' | 'rss';
+    shareType: ShareType;
     podcast?: Podcast;
     episode?: Episode;
   } | null>(null);
@@ -83,35 +83,26 @@ const AppContent: React.FC = () => {
   }, []);
 
   const handleImportDirect = useCallback(
-    async (data: SharedData) => {
-      // Handle RSS manifest mode (sharing multiple episodes)
-      if (data.shareMode === 'full-manifest' && data.episodes && data.episodes.length > 0) {
-        const podcastId = data.p
-          ? btoa(data.p).substring(0, 16)
+    async (feed: Feed) => {
+      // Handle feed with multiple tracks (full-manifest mode)
+      if (feed.tracks && feed.tracks.length > 1) {
+        const podcastId = feed.url
+          ? btoa(feed.url).substring(0, 16)
           : APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX + Date.now();
         
         const virtualPodcast: Podcast = {
           id: podcastId,
-          title: data.pt || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
-          image: data.pi || "",
+          title: feed.title || APP_CONSTANTS.DEFAULT_SHARED_PODCAST_TITLE,
+          image: "",
           feedUrl: "", // No RSS URL for virtual podcast
           author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
-          description: data.pd || "Shared podcast content",
+          description: feed.description || "Shared podcast content",
         };
 
-        // Convert minimal episodes to full episodes
-        const virtualEpisodes: Episode[] = data.episodes.map(ep => ({
-          id: ep.id,
-          podcastId: podcastId,
-          title: ep.title,
-          image: ep.image || data.pi || "",
-          description: ep.description || "",
-          audioUrl: ep.audioUrl,
-          duration: ep.duration || "Shared",
-          pubDate: ep.pubDate || "",
-          link: "",
-          podcastTitle: data.pt,
-        }));
+        // Convert tracks to full episodes (pass feed image as fallback)
+        const virtualEpisodes: Episode[] = feed.tracks.map((track, index) => 
+          shareService.trackToEpisode(track, podcastId, index, feed.image || undefined)
+        );
 
         // Load virtual podcast and navigate to it
         loadVirtualPodcast(virtualPodcast, virtualEpisodes);
@@ -122,38 +113,28 @@ const AppContent: React.FC = () => {
         return;
       }
       
-      // Handle RSS frequency mode or wave-source mode
-      if (data.p && !data.t) {
+      // Handle RSS frequency mode (feed with URL but no tracks)
+      if (feed.url && (!feed.tracks || feed.tracks.length === 0)) {
         // Just RSS URL, load it normally via existing route
-        navigate(`/podcast/${encodeURIComponent(data.p)}`, { replace: true });
+        navigate(`/podcast/${encodeURIComponent(feed.url)}`, { replace: true });
         return;
       }
       
       // Handle single track (embedded-payload)
-      if (data.t && data.u) {
+      if (feed.tracks && feed.tracks.length === 1) {
+        const track = feed.tracks[0];
         const podcastId = APP_CONSTANTS.STANDALONE_PODCAST_ID_PREFIX + Date.now();
         
         const virtualPodcast: Podcast = {
           id: podcastId,
-          title: data.st || "Shared Track",
-          image: data.si || data.i || "",
+          title: feed.title || "Shared Track",
+          image: "",
           feedUrl: "", // No RSS URL for virtual podcast
           author: APP_CONSTANTS.DEFAULT_SHARED_AUTHOR,
-          description: "Shared single track",
+          description: feed.description || "Shared single track",
         };
         
-        const virtualEpisode: Episode = {
-          id: data.e || "shared-episode-" + Date.now(),
-          podcastId: podcastId,
-          title: data.t,
-          image: data.i || data.si || "",
-          description: data.d || "",
-          audioUrl: data.u,
-          duration: "Shared",
-          pubDate: "",
-          link: "",
-          podcastTitle: data.st,
-        };
+        const virtualEpisode: Episode = shareService.trackToEpisode(track, podcastId, 0, feed.image || undefined);
 
         // Load as a virtual podcast with single episode
         loadVirtualPodcast(virtualPodcast, [virtualEpisode]);
@@ -275,7 +256,7 @@ const AppContent: React.FC = () => {
       } else {
         // Sharing RSS feed only
         setShareModalData({
-          shareType: 'rss',
+          shareType: 'frequency',
           podcast: pod || undefined,
         });
       }

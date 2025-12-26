@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ShareModal } from '../Modals/ShareModal';
 import { Podcast, Episode } from '../../types';
 import * as shareService from '../../services/shareService';
+import * as rssService from '../../services/rssService';
 
 describe('ShareModal', () => {
   const mockPodcast: Podcast = {
@@ -33,6 +34,25 @@ describe('ShareModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock calculateMaxEpisodes to avoid compression errors in tests
+    // Return 1 to match the single episode in the mock data
+    vi.spyOn(shareService.shareService, 'calculateMaxEpisodes').mockResolvedValue({
+      maxEpisodes: 1,
+      totalEpisodes: 1
+    });
+    // Mock rssService.fetchPodcast for Full Manifest mode
+    vi.spyOn(rssService.rssService, 'fetchPodcast').mockResolvedValue({
+      podcast: mockPodcast,
+      episodes: [mockEpisode]
+    });
+    // Mock generateUrl to avoid compression failures in tests
+    vi.spyOn(shareService.shareService, 'generateUrl').mockReturnValue({
+      url: 'http://localhost:3000/#/p/test-compressed-url',
+      length: 45,
+      isTooLong: false,
+      payloadLength: 0,
+      warning: undefined
+    });
   });
 
   describe('Track Sharing (Wave Broadcast)', () => {
@@ -158,7 +178,7 @@ describe('ShareModal', () => {
     it('should render with correct title for RSS sharing', () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
@@ -170,7 +190,7 @@ describe('ShareModal', () => {
     it('should display podcast information', () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
@@ -183,35 +203,34 @@ describe('ShareModal', () => {
     it('should show Frequency Only and Full Manifest options', () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
       );
 
-      // Check buttons exist - text is now just 'Frequency' and 'Full Manifest'
-      expect(screen.getAllByText('Frequency').length).toBeGreaterThan(0);
+      // Check buttons exist - text is now 'Frequency Only' and 'Full Manifest'
+      expect(screen.getByText('Frequency Only')).toBeInTheDocument();
       expect(screen.getByText('Full Manifest')).toBeInTheDocument();
     });
 
     it('should default to Frequency Only mode', () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
       );
 
-      const frequencyButtons = screen.getAllByText('Frequency');
-      const frequencyButton = frequencyButtons[frequencyButtons.length - 1].closest('button');
+      const frequencyButton = screen.getByText('Frequency Only').closest('button');
       expect(frequencyButton).toHaveClass('border-indigo-500');
     });
 
     it('should show manifest controls when Full Manifest selected', async () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
@@ -233,7 +252,7 @@ describe('ShareModal', () => {
     it('should use correct button text for RSS sharing', () => {
       render(
         <ShareModal
-          shareType="rss"
+          shareType="frequency"
           podcast={mockPodcast}
           onClose={mockOnClose}
         />
