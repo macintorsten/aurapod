@@ -13,7 +13,8 @@
     "test:e2e:ui": "npm run build && playwright test --ui",
     "test:watch": "vitest watch",
     "test:unused": "ts-prune",
-    "test:ci": "npm run test:unit && npm run test:unused",
+    "type:check": "tsc --noEmit",
+    "test:ci": "npm run type:check && npm run test:unit && npm run test:unused",
     "test:all": "npm run test:ci && npm run test:e2e",
     "prepare": "husky install"
   },
