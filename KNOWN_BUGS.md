@@ -6,13 +6,16 @@ This document tracks known bugs discovered during test coverage improvements. Ea
 
 ### 🔴 CRITICAL: `sanitizeHtml` Does Not Sanitize HTML (XSS Vulnerability)
 
-**Status:** Open - Requires Immediate Attention  
-**Severity:** Critical  
+**Status:** Open - Function Unused, Consider Removal  
+**Severity:** Critical (if ever used on untrusted input)  
 **File:** `src/utils/validators.ts:60-66`  
-**Discovered:** 2025-12-26
+**Discovered:** 2025-12-26  
+**Usage:** **NONE** - Function is not used anywhere in the codebase
 
 #### Description
 The `sanitizeHtml` function claims to provide "basic XSS protection" in its documentation but does NOT escape HTML characters. It returns raw HTML unchanged, allowing XSS attack vectors to pass through unescaped.
+
+**Important:** This function is currently **not used anywhere** in the codebase. It exists but has no callers.
 
 #### Current Behavior
 ```typescript
@@ -27,32 +30,138 @@ sanitizeHtml('<script>alert("xss")</script>')
 ```
 
 #### Root Cause
-The function uses `div.textContent = html; return div.innerHTML;` which doesn't properly escape HTML in the happy-dom test environment. The approach may work in real browsers but the function's behavior is inconsistent and unreliable.
+The function uses `div.textContent = html; return div.innerHTML;` which doesn't properly escape HTML in the test environment. The approach is fundamentally flawed for sanitization.
+
+#### Context Questions to Answer Before Fixing
+
+1. **Is HTML sanitization actually needed?**
+   - Where would this input come from? (RSS feed descriptions?)
+   - Does the RSS standard allow/require HTML in description fields?
+   - How do other podcast players handle this?
+
+2. **If HTML rendering is needed:**
+   - Should we support a subset of HTML (bold, italic, links)?
+   - Should we use a proper sanitization library (DOMPurify)?
+   - Or should we extract text content only and display as plain text?
+
+3. **Current approach problems:**
+   - Cannot reliably distinguish HTML from text
+   - Incomplete/broken sanitization is worse than none
+   - Hard to maintain and test properly
+
+#### Recommended Actions
+
+**Option 1: Remove the function** (Recommended since it's unused)
+- Function has no callers in the codebase
+- Prevents future misuse of broken function
+- Remove tests for unused function
+
+**Option 2: If HTML rendering is truly needed:**
+1. Use DOMPurify library for proper sanitization
+2. Define allowed HTML tags/attributes whitelist
+3. Document expected input sources (RSS feeds, etc.)
+4. Test with real RSS feed data
+
+**Option 3: Extract text content only**
+- Parse HTML and extract textContent
+- Display as plain text (no HTML rendering)
+- Simple, safe, no sanitization needed
 
 #### Security Impact
-- **High Risk**: If this function is used to sanitize untrusted user input (comments, descriptions, etc.), it creates an XSS vulnerability
-- **Attack Vectors**: `<script>` tags, `onerror` handlers, malicious links all pass through unescaped
-- **Recommended Actions**:
-  1. Immediately audit all usages of `sanitizeHtml` in the codebase
-  2. If used on user input: Replace with proper sanitization library (e.g., DOMPurify)
-  3. If not used: Remove function to prevent future misuse
-  4. Add proper input validation and output encoding
+- **High Risk IF USED**: Creates XSS vulnerability if ever used on untrusted input
+- **Current Risk: NONE**: Function has no callers
+- **Future Risk**: Developer might use it assuming it works, creating vulnerability
 
 #### Test Cases
-**Location:** `src/utils/__tests__/validators.test.ts:118-147`  
-**Status:** Disabled with `.skip()`
+**Location:** `src/utils/__tests__/validators.test.ts:123-156`  
+**Status:** 4 tests disabled with `.skip()`
 
-Tests that demonstrate the vulnerability:
-- `SECURITY BUG: does not escape HTML tags (returns raw HTML)`
-- `SECURITY BUG: does not escape special characters`
-- `SECURITY BUG: does not prevent XSS attacks`
-- `SECURITY BUG: does not escape link tags`
+Tests assert EXPECTED (correct) behavior and would FAIL with current implementation:
+- `should escape HTML tags to prevent XSS` - Expects proper escaping
+- `should escape special HTML characters` - Expects & < > escaping
+- `should prevent XSS attacks by escaping tags` - Expects img tag escaping
+- `should escape link tags` - Expects anchor tag escaping
 
 #### Why Tests Are Disabled
-These tests currently pass by asserting the WRONG (insecure) behavior. They are disabled because:
-1. They document the security vulnerability
-2. Once the bug is fixed, they should be updated to assert the CORRECT behavior
-3. Keeping them enabled would give false confidence that XSS protection exists
+These tests assert the CORRECT behavior the function should have. They are disabled because:
+1. The function is broken and doesn't implement this behavior
+2. The function is not used anywhere, so fixing it is not urgent
+3. When/if the function is ever needed, these tests document what it should do
+4. They will PASS once the implementation is fixed
+
+---
+
+## Questionable Implementations (Not Bugs, But Worth Reviewing)
+
+### ⚠️ `isValidAudioUrl` - Unreliable URL-Based Audio Validation
+
+**Status:** Questionable Design - Function Unused  
+**Severity:** Low (function not used)  
+**File:** `src/utils/validators.ts:46-53`  
+**Discovered:** 2025-12-26  
+**Usage:** **NONE** - Function is not used anywhere in the codebase
+
+#### Description
+The `isValidAudioUrl` function attempts to validate whether a URL points to audio content by checking if the URL string contains common audio file extensions (.mp3, .m4a, etc.). This approach has significant limitations.
+
+#### Why This Approach Is Problematic
+
+**Cannot reliably determine audio content from URL alone:**
+1. **False Negatives**: Many audio URLs don't have file extensions
+   - Streaming endpoints: `https://api.spotify.com/stream/track/abc123`
+   - Dynamic URLs: `https://cdn.example.com/audio?id=12345&format=mp3`
+   - REST APIs: `https://api.example.com/episodes/123/audio`
+
+2. **False Positives**: URL with audio extension might not serve audio
+   - Broken/expired links return 404
+   - Authentication required returns 401/403
+   - Server configuration issues
+
+3. **Proper validation requires HTTP response headers:**
+   ```typescript
+   // Correct approach:
+   const response = await fetch(url);
+   const contentType = response.headers.get('content-type');
+   const isAudio = contentType?.startsWith('audio/');
+   ```
+
+#### Current Implementation
+```typescript
+export function isValidAudioUrl(url: string): boolean {
+  if (!isValidUrl(url)) return false;
+  
+  const audioExtensions = [".mp3", ".m4a", ".wav", ".ogg", ".aac", ".opus"];
+  const lowerUrl = url.toLowerCase();
+  
+  return audioExtensions.some((ext) => lowerUrl.includes(ext));
+}
+```
+
+#### Recommendation
+
+**Since the function is not used anywhere:**
+
+**Option 1: Remove the function** (Recommended)
+- No callers exist in the codebase
+- Prevents future misuse of unreliable validation
+- Remove associated tests
+
+**Option 2: If audio validation is needed in the future:**
+- Validate based on HTTP `Content-Type` header from response
+- Check for MIME types: `audio/mpeg`, `audio/mp4`, `audio/ogg`, etc.
+- Handle edge cases: redirects, authentication, network errors
+- Document that this requires async validation (network call)
+
+**Option 3: Keep for heuristic pre-filtering only:**
+- Rename to `likelyAudioUrl` or `hasAudioExtension`
+- Document clearly that this is NOT reliable validation
+- Use only as optimization hint, not security/validation gate
+
+#### Test Cases
+**Location:** `src/utils/__tests__/validators.test.ts:68-101`  
+**Status:** Tests currently enabled (testing existing behavior)
+
+Tests document current behavior but acknowledge limitations in comments.
 
 ---
 
