@@ -88,7 +88,7 @@ describe('PlayerContainer', () => {
     
     // Setup default cast service mocks
     vi.spyOn(castService.castService, 'setEnabled').mockImplementation(() => {});
-    vi.spyOn(castService.castService, 'initialize').mockResolvedValue(undefined);
+    vi.spyOn(castService.castService, 'initialize').mockResolvedValue(false);
     vi.spyOn(castService.castService, 'onStateChange').mockReturnValue(() => {});
     vi.spyOn(castService.castService, 'onMediaStatus').mockReturnValue(() => {});
     vi.spyOn(castService.castService, 'isPlaying').mockReturnValue(false);
@@ -146,8 +146,7 @@ describe('PlayerContainer', () => {
       mockEpisode,
       mockPodcast,
       expect.any(Number),
-      expect.any(Number),
-      expect.any(Boolean)
+      expect.any(Number)
     );
   });
 
@@ -202,13 +201,11 @@ describe('PlayerContainer', () => {
     const mockHistory = {
       [mockEpisode.id]: {
         episodeId: mockEpisode.id,
+        podcastId: mockPodcast.id,
         currentTime: 120,
         duration: 300,
+        lastUpdated: Date.now(),
         completed: false,
-        lastPlayed: Date.now(),
-        podcastId: mockPodcast.id,
-        podcastTitle: mockPodcast.title,
-        episodeTitle: mockEpisode.title,
       },
     };
     
@@ -225,13 +222,11 @@ describe('PlayerContainer', () => {
     const mockHistory = {
       [mockEpisode.id]: {
         episodeId: mockEpisode.id,
+        podcastId: mockPodcast.id,
         currentTime: 120,
         duration: 300,
+        lastUpdated: Date.now(),
         completed: true, // Marked as completed
-        lastPlayed: Date.now(),
-        podcastId: mockPodcast.id,
-        podcastTitle: mockPodcast.title,
-        episodeTitle: mockEpisode.title,
       },
     };
     

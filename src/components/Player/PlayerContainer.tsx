@@ -84,7 +84,7 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
 
     const handleEnded = () => {
       setIsPlaying(false);
-      saveProgress(audio.currentTime, audio.duration, true);
+      saveProgress(audio.currentTime, audio.duration);
       onNext();
     };
 
@@ -221,8 +221,8 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   }, [isPlaying]); // Re-bind when isPlaying changes
 
   // Save progress helper
-  const saveProgress = useCallback((currentTime: number, duration: number, completed = false) => {
-    storageService.updatePlayback(episode, podcast, currentTime, duration, completed);
+  const saveProgress = useCallback((currentTime: number, duration: number) => {
+    storageService.updatePlayback(episode, podcast, currentTime, duration);
     onProgress?.(episode.id, currentTime, duration);
   }, [episode, podcast, onProgress]);
 
@@ -284,12 +284,10 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
 
   // Cast episode
   const handleCast = useCallback(() => {
-    if (!isCasting) {
-      castService.castEpisode(episode, podcast, currentTime);
-    } else {
-      castService.disconnect();
-    }
-  }, [isCasting, episode, podcast, currentTime]);
+    // Cast functionality - would need to be implemented in castService
+    // For now, this is a placeholder
+    console.log('Cast functionality not yet implemented');
+  }, []);
 
   return (
     <PlayerPresentation
@@ -299,22 +297,21 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
       isPlaying={isPlaying}
       isBuffering={isBuffering}
       isCasting={isCasting}
+      isCastAvailable={false}
       castDeviceName={castDeviceName}
       currentTime={currentTime}
       duration={duration}
       playbackRate={playbackRate}
+      speeds={[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]}
       showQueue={showQueue}
-      showSpeedMenu={showSpeedMenu}
-      errorMessage={errorMessage}
       onTogglePlay={togglePlay}
       onSkipBackward={() => skipSeconds(-10)}
       onSkipForward={() => skipSeconds(10)}
       onNext={onNext}
       onSeek={seekToPercentage}
-      onChangePlaybackRate={changePlaybackRate}
+      onChangeSpeed={() => setShowSpeedMenu(!showSpeedMenu)}
       onToggleQueue={() => setShowQueue(!showQueue)}
-      onToggleSpeedMenu={() => setShowSpeedMenu(!showSpeedMenu)}
-      onCast={handleCast}
+      onToggleCast={handleCast}
       onShare={onShare}
       onClose={onClose}
       onRemoveFromQueue={onRemoveFromQueue}

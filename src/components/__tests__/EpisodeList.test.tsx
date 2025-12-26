@@ -20,29 +20,35 @@ vi.mock('../EpisodeItem', () => ({
 
 const mockEpisode1: Episode = {
   id: 'ep1',
+  podcastId: 'podcast1',
   title: 'Episode 1',
-  url: 'https://example.com/ep1.mp3',
-  duration: 3600,
-  published: '2024-01-01',
+  audioUrl: 'https://example.com/ep1.mp3',
+  duration: '3600',
+  pubDate: '2024-01-01',
   description: 'First episode',
+  link: 'https://example.com/ep1',
 };
 
 const mockEpisode2: Episode = {
   id: 'ep2',
+  podcastId: 'podcast1',
   title: 'Episode 2',
-  url: 'https://example.com/ep2.mp3',
-  duration: 1800,
-  published: '2024-01-02',
+  audioUrl: 'https://example.com/ep2.mp3',
+  duration: '1800',
+  pubDate: '2024-01-02',
   description: 'Second episode',
+  link: 'https://example.com/ep2',
 };
 
 const mockEpisode3: Episode = {
   id: 'ep3',
+  podcastId: 'podcast1',
   title: 'Episode 3',
-  url: 'https://example.com/ep3.mp3',
-  duration: 2400,
-  published: '2024-01-03',
+  audioUrl: 'https://example.com/ep3.mp3',
+  duration: '2400',
+  pubDate: '2024-01-03',
   description: 'Third episode',
+  link: 'https://example.com/ep3',
 };
 
 describe('EpisodeList', () => {
@@ -115,10 +121,12 @@ describe('EpisodeList', () => {
     it('should calculate progress from history', () => {
       const history: Record<string, PlaybackState> = {
         ep1: {
+          episodeId: 'ep1',
+          podcastId: 'podcast1',
           currentTime: 1800,
           duration: 3600,
-          progress: 0.5,
-          lastPlayed: Date.now(),
+          lastUpdated: Date.now(),
+          completed: false,
         },
       };
 
@@ -136,16 +144,20 @@ describe('EpisodeList', () => {
     it('should calculate different progress for different episodes', () => {
       const history: Record<string, PlaybackState> = {
         ep1: {
+          episodeId: 'ep1',
+          podcastId: 'podcast1',
           currentTime: 900,
           duration: 3600,
-          progress: 0.25,
-          lastPlayed: Date.now(),
+          lastUpdated: Date.now(),
+          completed: false,
         },
         ep2: {
+          episodeId: 'ep2',
+          podcastId: 'podcast1',
           currentTime: 1350,
           duration: 1800,
-          progress: 0.75,
-          lastPlayed: Date.now(),
+          lastUpdated: Date.now(),
+          completed: false,
         },
       };
 
@@ -284,10 +296,12 @@ describe('EpisodeList', () => {
 
       const history: Record<string, PlaybackState> = {
         ep2: {
+          episodeId: 'ep2',
+          podcastId: 'podcast1',
           currentTime: 900,
           duration: 1800,
-          progress: 0.5,
-          lastPlayed: Date.now(),
+          lastUpdated: Date.now(),
+          completed: false,
         },
       };
 

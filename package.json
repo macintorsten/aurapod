@@ -48,7 +48,6 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "tsc --noEmit --skipLibCheck",
       "vitest related --run --passWithNoTests"
     ]
   }

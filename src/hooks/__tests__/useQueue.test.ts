@@ -20,29 +20,35 @@ import confetti from 'canvas-confetti';
 
 const mockEpisode1: Episode = {
   id: 'ep1',
+  podcastId: 'podcast1',
   title: 'Episode 1',
-  url: 'https://example.com/ep1.mp3',
-  duration: 3600,
-  published: '2024-01-01',
+  audioUrl: 'https://example.com/ep1.mp3',
+  duration: '3600',
+  pubDate: '2024-01-01',
   description: 'Description 1',
+  link: 'https://example.com/ep1',
 };
 
 const mockEpisode2: Episode = {
   id: 'ep2',
+  podcastId: 'podcast1',
   title: 'Episode 2',
-  url: 'https://example.com/ep2.mp3',
-  duration: 1800,
-  published: '2024-01-02',
+  audioUrl: 'https://example.com/ep2.mp3',
+  duration: '1800',
+  pubDate: '2024-01-02',
   description: 'Description 2',
+  link: 'https://example.com/ep2',
 };
 
 const mockEpisode3: Episode = {
   id: 'ep3',
+  podcastId: 'podcast1',
   title: 'Episode 3',
-  url: 'https://example.com/ep3.mp3',
-  duration: 2400,
-  published: '2024-01-03',
+  audioUrl: 'https://example.com/ep3.mp3',
+  duration: '2400',
+  pubDate: '2024-01-03',
   description: 'Description 3',
+  link: 'https://example.com/ep3',
 };
 
 describe('useQueue', () => {
