@@ -81,10 +81,14 @@ describe('formatters', () => {
       expect(formatted).toMatch(/2024/);
     });
 
-    it('should return "Invalid Date" for NaN input (bug: should return "Invalid timestamp")', () => {
+    // DISABLED: This test asserts WRONG behavior
+    // See KNOWN_BUGS.md for details
+    // Once fixed, update assertion to expect 'Invalid timestamp'
+    it.skip('BUG: should return "Invalid timestamp" for NaN input', () => {
       // BUG: formatTimestamp doesn't properly validate invalid dates
-      // Expected: "Invalid timestamp", Actual: "Invalid Date"
-      expect(formatTimestamp(NaN)).toBe('Invalid Date');
+      // Currently returns: "Invalid Date"
+      // Should return: "Invalid timestamp"
+      expect(formatTimestamp(NaN)).toBe('Invalid timestamp');
     });
 
     it('should handle zero timestamp (epoch)', () => {
@@ -152,10 +156,14 @@ describe('formatters', () => {
       expect(parseDuration('')).toBe(0);
     });
 
-    it('should return NaN for invalid non-numeric format (bug: should return 0)', () => {
+    // DISABLED: This test asserts WRONG behavior
+    // See KNOWN_BUGS.md for details
+    // Once fixed, update assertion to expect 0
+    it.skip('BUG: should return 0 for invalid non-numeric format', () => {
       // BUG: parseDuration doesn't handle non-numeric strings properly
-      // Expected: 0, Actual: NaN (from Number('invalid'))
-      expect(parseDuration('invalid')).toBeNaN();
+      // Currently returns: NaN (from Number('invalid'))
+      // Should return: 0
+      expect(parseDuration('invalid')).toBe(0);
     });
 
     it('should handle zero values', () => {

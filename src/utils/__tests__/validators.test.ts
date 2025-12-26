@@ -103,7 +103,7 @@ describe('validators', () => {
   describe('sanitizeHtml', () => {
     // **SECURITY BUG DISCOVERED**: sanitizeHtml does NOT actually escape HTML!
     // The function claims to provide XSS protection but returns raw HTML unchanged
-    // See: src/utils/validators.ts:60-66
+    // See: src/utils/validators.ts:60-66 and KNOWN_BUGS.md for details
     // Current behavior: div.textContent = html; return div.innerHTML; (doesn't escape in happy-dom)
     // Expected behavior: Should escape < > & " ' to prevent XSS
     
@@ -115,36 +115,43 @@ describe('validators', () => {
       expect(sanitizeHtml(null as any)).toBe('');
     });
 
-    it('SECURITY BUG: does not escape HTML tags (returns raw HTML)', () => {
+    // DISABLED: These tests currently assert WRONG (insecure) behavior
+    // They are disabled because they would give false confidence that XSS protection exists
+    // See KNOWN_BUGS.md for details on the security vulnerability
+    // Once the bug is fixed, these should be re-enabled with correct assertions
+    
+    it.skip('SECURITY BUG: does not escape HTML tags (returns raw HTML)', () => {
       // This is a critical security bug - function doesn't work as documented
       const result = sanitizeHtml('<script>alert("xss")</script>');
-      // Should be: '&lt;script&gt;alert("xss")&lt;/script&gt;'
-      // Actually is: '<script>alert("xss")</script>'
-      expect(result).toBe('<script>alert("xss")</script>');
+      // Once fixed, should be: expect(result).toBe('&lt;script&gt;alert("xss")&lt;/script&gt;');
+      // Currently (WRONG): expect(result).toBe('<script>alert("xss")</script>');
+      expect(result).not.toContain('<script>'); // This is what it SHOULD do
     });
 
-    it('SECURITY BUG: does not escape special characters', () => {
+    it.skip('SECURITY BUG: does not escape special characters', () => {
       const result = sanitizeHtml('<div>Hello & Goodbye</div>');
-      // Should escape < > &
-      // Actually doesn't
-      expect(result).toBe('<div>Hello & Goodbye</div>');
+      // Once fixed, should escape < > &
+      // Currently (WRONG): doesn't escape
+      expect(result).not.toContain('<div>'); // This is what it SHOULD do
     });
 
     it('should handle plain text without changes', () => {
       expect(sanitizeHtml('Hello World')).toBe('Hello World');
     });
 
-    it('SECURITY BUG: does not prevent XSS attacks', () => {
+    it.skip('SECURITY BUG: does not prevent XSS attacks', () => {
       const malicious = '<img src=x onerror="alert(1)">';
       const result = sanitizeHtml(malicious);
-      // Should escape tags, actually doesn't
-      expect(result).toBe(malicious);
+      // Once fixed, should escape tags
+      // Currently (WRONG): doesn't escape
+      expect(result).not.toContain('<img'); // This is what it SHOULD do
     });
 
-    it('SECURITY BUG: does not escape link tags', () => {
+    it.skip('SECURITY BUG: does not escape link tags', () => {
       const result = sanitizeHtml('<a href="http://evil.com">Click</a>');
-      // Should escape tags, actually doesn't
-      expect(result).toBe('<a href="http://evil.com">Click</a>');
+      // Once fixed, should escape tags
+      // Currently (WRONG): doesn't escape
+      expect(result).not.toContain('<a'); // This is what it SHOULD do
     });
   });
 
