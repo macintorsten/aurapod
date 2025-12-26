@@ -69,7 +69,8 @@ test.describe('Podcast Search and Subscription', () => {
     // Navigate back to Discover
     const discoverLink = page.locator('a:has-text("Discover")');
     await discoverLink.click();
-    await expect(page.locator('h2:has-text("Discover"), input[data-testid="search-input"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h2:has-text("Discover")')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('search-input')).toBeVisible();
     
     // Navigate to New Releases
     const newReleasesButton = page.locator('button:has-text("New Releases")');
