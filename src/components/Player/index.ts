@@ -7,3 +7,4 @@ export * from "./PlayerControls";
 export * from "./PlayerProgress";
 export * from "./PlayerActions";
 export * from "./PlayerQueue";
+export * from "./PlayerPresentation";
