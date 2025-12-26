@@ -45,6 +45,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
+      "bash -c 'tsc --noEmit'",
       "vitest related --run --passWithNoTests"
     ]
   }

@@ -68,6 +68,20 @@ npx tsc --noEmit
 npm run build
 ```
 
-**Best Practice**: Run `npx tsc --noEmit` before pushing to catch type errors early.
+### Pre-commit Hooks
+
+The project uses Husky and lint-staged to automatically run checks before each commit:
+
+- **TypeScript type checking** - Catches type errors before they reach CI
+- **Related unit tests** - Runs tests for files you've changed
+
+These checks run automatically when you commit. If they fail, the commit will be blocked until issues are fixed.
+
+**To bypass pre-commit hooks** (not recommended):
+```bash
+git commit --no-verify
+```
+
+**Best Practice**: Run `npx tsc --noEmit` and `npm test` before pushing to catch issues early.
 
 For detailed testing patterns and best practices, see [TESTING_GUIDE.md](TESTING_GUIDE.md).
