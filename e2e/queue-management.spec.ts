@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Queue Management', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
   });
 
   test('should be able to add episode to queue', async ({ page }) => {
@@ -30,7 +30,7 @@ test.describe('Queue Management', () => {
     
     // First, check initial state
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
     
     // Queue should be persisted in localStorage
     const queueData = await page.evaluate(() => {
@@ -91,7 +91,7 @@ test.describe('Queue Management', () => {
     
     // Reload to apply queue
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
     
     // Queue should be loaded
     const queueAfterReload = await page.evaluate(() => {
@@ -199,7 +199,7 @@ test.describe('Queue Management', () => {
     }, largeQueue);
     
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
     
     // Should not crash
     const queueCount = await page.evaluate(() => {

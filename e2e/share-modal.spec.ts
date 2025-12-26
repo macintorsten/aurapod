@@ -3,20 +3,18 @@ import { test, expect } from '@playwright/test';
 test.describe('Share Modal - Embedded Mode Tests', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
   });
 
   test('should share track in embedded mode - full flow', async ({ page }) => {
     // Search for a podcast to ensure we have content
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
     await searchInput.fill('JavaScript');
-    await page.waitForTimeout(1000);
     
     // Click on first podcast result
     const firstPodcast = page.locator('article, [data-testid="podcast-card"], .podcast-card').first();
+    await expect(firstPodcast).toBeVisible();
     await firstPodcast.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     
     // Wait for episodes to load
     await page.waitForSelector('text=/Episode|Track|Play/', { timeout: 10000 });
@@ -34,9 +32,6 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
       const embeddedButton = page.locator('button').filter({ hasText: /^Embedded$/i });
       await expect(embeddedButton).toBeVisible({ timeout: 2000 });
       await embeddedButton.click();
-      
-      // Wait for mode to switch
-      await page.waitForTimeout(500);
       
       // Verify modal is still visible (not white page)
       await expect(page.locator('text=/Wave.*Broadcast|Share/i')).toBeVisible();
@@ -72,13 +67,11 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
     // Search for a podcast
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
     await searchInput.fill('Tech');
-    await page.waitForTimeout(1000);
     
     // Click on first podcast
     const firstPodcast = page.locator('article, [data-testid="podcast-card"], .podcast-card').first();
+    await expect(firstPodcast).toBeVisible();
     await firstPodcast.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     
     // Find podcast-level share button (usually in header/toolbar)
     const podcastShareButton = page.locator('button:has(i.fa-signal), button:has(i.fa-podcast), header button:has(i.fa-share-nodes)').first();
@@ -97,9 +90,6 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
       
       // Click Full Manifest (embedded mode for frequency)
       await fullManifestButton.click();
-      
-      // Wait for RSS loading
-      await page.waitForTimeout(1500);
       
       // Modal should still be visible
       await expect(page.locator('text=/Frequency.*Broadcast|Share/i')).toBeVisible();
@@ -133,13 +123,11 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
     // Search for a podcast
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
     await searchInput.fill('News');
-    await page.waitForTimeout(1000);
     
     // Click on first podcast
     const firstPodcast = page.locator('article, [data-testid="podcast-card"], .podcast-card').first();
+    await expect(firstPodcast).toBeVisible();
     await firstPodcast.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     
     // Find share button on episode
     const episodeShareButton = page.locator('article, [role="article"], li').filter({ hasText: /Episode|Track/ }).first().locator('button:has(i.fa-share-nodes)').first();
@@ -156,7 +144,6 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
       if (await rssButton.isVisible({ timeout: 1000 })) {
         // Click RSS mode (wave-source)
         await rssButton.click();
-        await page.waitForTimeout(300);
         
         // Should show RSS badge
         await expect(page.locator('text=/📡|RSS/i')).toBeVisible();
@@ -183,13 +170,11 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
     // Search for a podcast
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
     await searchInput.fill('Comedy');
-    await page.waitForTimeout(1000);
     
     // Click on first podcast
     const firstPodcast = page.locator('article, [data-testid="podcast-card"], .podcast-card').first();
+    await expect(firstPodcast).toBeVisible();
     await firstPodcast.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     
     // Find podcast-level share button
     const podcastShareButton = page.locator('button:has(i.fa-signal), button:has(i.fa-podcast), header button:has(i.fa-share-nodes)').first();
@@ -206,7 +191,6 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
       if (await frequencyOnlyButton.isVisible({ timeout: 1000 })) {
         // Click to ensure it's selected
         await frequencyOnlyButton.click();
-        await page.waitForTimeout(300);
         
         // Should show frequency badge
         await expect(page.locator('text=/📻|Freq/i')).toBeVisible({ timeout: 2000 });
@@ -233,13 +217,11 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
     // Search for content
     const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
     await searchInput.fill('Technology');
-    await page.waitForTimeout(1000);
     
     // Click on podcast
     const firstPodcast = page.locator('article, [data-testid="podcast-card"], .podcast-card').first();
+    await expect(firstPodcast).toBeVisible();
     await firstPodcast.click();
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
     
     // Share an episode
     const episodeShareButton = page.locator('article, [role="article"], li').filter({ hasText: /Episode|Track/ }).first().locator('button:has(i.fa-share-nodes)').first();
@@ -254,17 +236,14 @@ test.describe('Share Modal - Embedded Mode Tests', () => {
       if (await rssButton.isVisible() && await embeddedButton.isVisible()) {
         // Switch to Embedded
         await embeddedButton.click();
-        await page.waitForTimeout(300);
         await expect(page.locator('text=/📦|Embed/i')).toBeVisible();
         
         // Switch back to RSS
         await rssButton.click();
-        await page.waitForTimeout(300);
         await expect(page.locator('text=/📡|RSS/i')).toBeVisible();
         
         // Switch to Embedded again
         await embeddedButton.click();
-        await page.waitForTimeout(300);
         await expect(page.locator('text=/📦|Embed/i')).toBeVisible();
         
         // Modal should still be functional

@@ -9,6 +9,7 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
+  timeout: 30 * 1000, // 30 seconds per test
   reporter: isCI 
     ? [['html'], ['github']]
     : [['html'], ['list']],

@@ -4,18 +4,12 @@ test.describe('Podcast Search and Subscription', () => {
   test('should search for podcasts using search bar', async ({ page }) => {
     await page.goto('/');
     
-    // Wait for page to load
-    await page.waitForLoadState('networkidle');
-    
     // Find and interact with search input
     const searchInput = page.getByRole('textbox', { name: /Explore/i });
     await expect(searchInput).toBeVisible();
     
     // Type search query
     await searchInput.fill('tech');
-    
-    // Wait for search results (debounced, so wait a bit)
-    await page.waitForTimeout(600);
     
     // Check that results appear (this may vary based on API availability)
     // The search should either show results or handle gracefully
@@ -45,9 +39,6 @@ test.describe('Podcast Search and Subscription', () => {
     const searchInput = page.getByRole('textbox', { name: /Explore/i });
     await searchInput.fill('xyzabc123nonexistentpodcast9999');
     
-    // Wait for debounce and search
-    await page.waitForTimeout(600);
-    
     // Should not crash, should handle empty results
     await expect(page.locator('body')).toBeVisible();
   });
@@ -59,11 +50,9 @@ test.describe('Podcast Search and Subscription', () => {
     
     // Type search
     await searchInput.fill('tech');
-    await page.waitForTimeout(600);
     
     // Clear search
     await searchInput.clear();
-    await page.waitForTimeout(600);
     
     // Trending section should be visible again
     await expect(page.locator('h3:has-text("Trending Now")')).toBeVisible();
@@ -94,7 +83,6 @@ test.describe('Podcast Search and Subscription', () => {
     // Search for something
     const searchInput = page.getByRole('textbox', { name: /Explore/i });
     await searchInput.fill('javascript');
-    await page.waitForTimeout(600);
     
     // Navigate away
     const archiveButton = page.locator('button:has-text("Signal Archive")');
@@ -130,9 +118,6 @@ test.describe('Podcast Search and Subscription', () => {
     await searchInput.type('b', { delay: 50 });
     await searchInput.type('c', { delay: 50 });
     await searchInput.type('d', { delay: 50 });
-    
-    // Wait for debounce
-    await page.waitForTimeout(600);
     
     // Should handle without crashing
     await expect(page.locator('body')).toBeVisible();

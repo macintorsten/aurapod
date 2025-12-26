@@ -4,7 +4,7 @@ test.describe('URL Receiving - Share Modes', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to home first
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
   });
 
   test('should handle frequency mode URL (RSS feed only)', async ({ page }) => {
@@ -51,17 +51,12 @@ test.describe('URL Receiving - Share Modes', () => {
     await page.goto(`/#/?s=${encoded}`);
     
     // Should navigate to home (embedded payload gets processed)
-    await page.waitForLoadState('networkidle');
-    
-    // Verify we're on home page
     await expect(page.locator('h2:has-text("Discover")')).toBeVisible();
   });
 
   test('should handle query params in hash fragment', async ({ page }) => {
     // Test that ?s= parameter is correctly processed from hash fragment
     await page.goto('/#/?s=test123');
-    
-    await page.waitForLoadState('networkidle');
     
     // The app processes the param and navigates to home
     // Verify we're on a valid page (not an error page)
@@ -71,8 +66,6 @@ test.describe('URL Receiving - Share Modes', () => {
   test('should handle malformed share URLs gracefully', async ({ page }) => {
     // Test with invalid encoded data
     await page.goto('/#/?s=invalid_base64_$$$$');
-    
-    await page.waitForLoadState('networkidle');
     
     // Should still show home page (error handled gracefully)
     await expect(page.locator('h2:has-text("Discover")')).toBeVisible();

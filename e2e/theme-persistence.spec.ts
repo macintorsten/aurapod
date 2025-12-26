@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Theme and UI Persistence', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=AuraPod')).toBeVisible();
   });
 
   test('should switch to dark theme', async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe('Theme and UI Persistence', () => {
     
     // Reload page
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=AuraPod')).toBeVisible();
     
     // Theme should still be dark
     await expect(html).toHaveClass(/dark/);
@@ -59,15 +59,12 @@ test.describe('Theme and UI Persistence', () => {
     
     // Click light
     await lightButton.click();
-    await page.waitForTimeout(200);
     
     // Click dark
     await darkButton.click();
-    await page.waitForTimeout(200);
     
     // Click system
     await systemButton.click();
-    await page.waitForTimeout(200);
     
     // Should not crash
     await expect(page.locator('body')).toBeVisible();
@@ -165,7 +162,7 @@ test.describe('Theme and UI Persistence', () => {
     
     // Reload - app should handle gracefully
     await page.reload();
-    await page.waitForLoadState('networkidle');
+    await expect(page.locator('text=AuraPod')).toBeVisible();
     
     // App should still load
     await expect(page.locator('text=AuraPod')).toBeVisible();
@@ -179,9 +176,7 @@ test.describe('Theme and UI Persistence', () => {
     // Rapid theme switching
     for (let i = 0; i < 5; i++) {
       await darkButton.click();
-      await page.waitForTimeout(100);
       await lightButton.click();
-      await page.waitForTimeout(100);
     }
     
     // UI should still be responsive

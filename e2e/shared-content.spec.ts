@@ -4,7 +4,7 @@ import { shareService, Feed } from '../src/services/shareService';
 test.describe('Shared Content - Virtual Podcasts', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('textbox', { name: /Explore/i })).toBeVisible();
   });
 
   test('should display shared single track as virtual podcast', async ({ page }) => {
@@ -25,10 +25,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    // Wait for navigation to shared podcast view
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500); // Give time for navigation
-
     // Should show "Shared Content" badge instead of "Broadcast Verified"
     await expect(page.locator('text=Shared Content')).toBeVisible({ timeout: 5000 });
 
@@ -74,9 +70,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
-
     // Should show "Shared Content" badge
     await expect(page.locator('text=Shared Content')).toBeVisible({ timeout: 5000 });
 
@@ -113,9 +106,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
-
     // Find and click the play button on the episode
     const playButton = page.locator('button:has(i.fa-play)').first();
     await expect(playButton).toBeVisible({ timeout: 5000 });
@@ -132,8 +122,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     // Navigate with invalid encoded data
     await page.goto('/#/?s=invalid_data_123');
     
-    await page.waitForLoadState('networkidle');
-
     // Should redirect to home page without crashing
     await expect(page.locator('h2:has-text("Discover")')).toBeVisible({ timeout: 5000 });
   });
@@ -156,9 +144,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
-
     // Verify content is displayed
     await expect(page.locator('text=Shared Content')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('h3:has-text("Persistent Podcast")')).toBeVisible();
@@ -169,7 +154,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
     // Navigate back
     await page.goBack();
-    await page.waitForLoadState('networkidle');
 
     // Content should still be visible
     await expect(page.locator('text=Shared Content')).toBeVisible();
@@ -193,9 +177,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
-
     // Check that description is displayed
     await expect(page.locator('text=This is a detailed description')).toBeVisible({ timeout: 5000 });
   });
@@ -218,9 +199,6 @@ test.describe('Shared Content - Virtual Podcasts', () => {
     const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
-
     // Should show default podcast title
     await expect(page.locator('text=Shared Track')).toBeVisible({ timeout: 5000 });
 
