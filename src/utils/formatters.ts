@@ -1,38 +1,9 @@
 /**
  * Formatting utilities for dates, times, and durations
+ * 
+ * NOTE: Removed unused functions (formatDate, formatFileSize) that had no callers in the codebase.
+ * See git history if needed.
  */
-
-/**
- * Format a date string for display
- * @param dateStr ISO date string or timestamp
- * @returns Formatted date string
- */
-export function formatDate(dateStr: string | number): string {
-  if (!dateStr) return "Unknown date";
-
-  try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return "Invalid date";
-
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch (e) {
-    return "Invalid date";
-  }
-}
 
 /**
  * Format timestamp for display (e.g., "Nov 20, 2023")
@@ -95,19 +66,6 @@ export function parseDuration(durationStr: string): number {
   }
 
   return 0;
-}
-
-/**
- * Format file size in human-readable format
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
 /**
