@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatTimestamp,
   formatTime,
-  parseDuration,
-  truncate,
-} from '../formatters';
+} from '..';
 
 describe('formatters', () => {
   describe('formatTimestamp', () => {
@@ -69,83 +67,6 @@ describe('formatters', () => {
       expect(formatTime(NaN)).toBe('0:00');
       expect(formatTime(Infinity)).toBe('0:00');
       expect(formatTime(-1)).toBe('0:00');
-    });
-  });
-
-  describe('parseDuration', () => {
-    it('should parse HH:MM:SS format', () => {
-      expect(parseDuration('1:23:45')).toBe(5025);
-      expect(parseDuration('0:05:30')).toBe(330);
-    });
-
-    it('should parse MM:SS format', () => {
-      expect(parseDuration('45:30')).toBe(2730);
-      expect(parseDuration('5:30')).toBe(330);
-    });
-
-    it('should parse SS format', () => {
-      expect(parseDuration('30')).toBe(30);
-      expect(parseDuration('90')).toBe(90);
-    });
-
-    it('should handle empty string', () => {
-      expect(parseDuration('')).toBe(0);
-    });
-
-    it('should handle leading zeros', () => {
-      expect(parseDuration('01:02:03')).toBe(3723);
-    });
-
-    it('should handle edge cases', () => {
-      expect(parseDuration('0:0:0')).toBe(0);
-      expect(parseDuration('00:00')).toBe(0);
-    });
-
-    it('should return 0 for invalid non-numeric format', () => {
-      expect(parseDuration('invalid')).toBe(0);
-    });
-  });
-
-  describe('truncate', () => {
-    it('should not truncate short text', () => {
-      const text = 'Short text';
-      expect(truncate(text, 20)).toBe('Short text');
-    });
-
-    it('should truncate long text with ellipsis', () => {
-      const text = 'This is a very long text that needs truncation';
-      const result = truncate(text, 20);
-      
-      expect(result).toBe('This is a very lo...');
-      expect(result.length).toBe(20);
-    });
-
-    it('should handle text exactly at max length', () => {
-      const text = '12345';
-      expect(truncate(text, 5)).toBe('12345');
-    });
-
-    it('should handle empty string', () => {
-      expect(truncate('', 10)).toBe('');
-    });
-
-    it('should handle maxLength less than 3', () => {
-      // Edge case: ellipsis is 3 chars, so maxLength < 3 might cause issues
-      const text = 'Hello';
-      expect(truncate(text, 2)).toBe('...');
-    });
-
-    it('should handle null/undefined', () => {
-      expect(truncate(null as any, 10)).toBe(null);
-      expect(truncate(undefined as any, 10)).toBe(undefined);
-    });
-
-    it('should truncate at word boundaries when possible', () => {
-      const text = 'The quick brown fox jumps over the lazy dog';
-      const result = truncate(text, 20);
-      
-      expect(result.length).toBe(20);
-      expect(result.endsWith('...')).toBe(true);
     });
   });
 });

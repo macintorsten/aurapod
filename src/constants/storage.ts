@@ -9,5 +9,3 @@ export const STORAGE_KEYS = {
   THEME: "aurapod_theme",
   QUEUE: "aurapod_queue",
 } as const;
-
-export type StorageKey = keyof typeof STORAGE_KEYS;

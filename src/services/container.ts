@@ -75,23 +75,3 @@ export const createServiceContainer = (
     packt: dependencies?.packt ?? defaultPackt,
   };
 };
-
-/**
- * Default service container instance with real implementations.
- *
- * Use this in production code where dependency injection is not needed.
- * For testing, create instances via createServiceContainer() with mocks.
- */
-export const services = createServiceContainer();
-
-/**
- * Export service container type for use in service factories.
- *
- * Usage in service creation:
- * ```typescript
- * export const createMyService = (deps: ServiceContainer) => ({
- *   myMethod: () => deps.rssService.fetchPodcast()
- * });
- * ```
- */
-export type { ServiceContainer as ServiceContainerType };

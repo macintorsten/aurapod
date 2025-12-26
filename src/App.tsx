@@ -10,13 +10,8 @@ import { usePodcastSearch } from "./hooks/usePodcastSearch";
 import { MainLayout } from "./components/Layout";
 import { SystemStatusPanel, ShareModal } from "./components/Modals";
 import { LoadingView } from "./components/Loading";
-import { HomePage } from "./pages/Home";
-import { PodcastDetailPage } from "./pages/PodcastDetail";
-import { ArchivePage } from "./pages/Archive";
-import { NewReleasesPage } from "./pages/NewReleases";
-import { AppProvider, useAppContext } from "./contexts/AppContext";
-import { PlayerProvider, usePlayerContext } from "./contexts/PlayerContext";
-import { UIProvider, useUIContext } from "./contexts/UIContext";
+import { HomePage, PodcastDetailPage, ArchivePage, NewReleasesPage } from "./pages";
+import { AppProvider, useAppContext, PlayerProvider, usePlayerContext, UIProvider, useUIContext } from "./contexts";
 import { APP_CONSTANTS } from "./constants";
 import confetti from "canvas-confetti";
 

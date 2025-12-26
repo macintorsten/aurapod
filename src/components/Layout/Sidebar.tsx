@@ -2,7 +2,7 @@ import React from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Podcast, Theme } from "../../types";
 import { APP_CONFIG } from "../../config";
-import { encodeFeedUrl } from "../../constants/routes";
+import { encodeFeedUrl } from "../../constants";
 
 interface SidebarProps {
   podcasts: Podcast[];

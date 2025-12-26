@@ -2,9 +2,8 @@ import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Podcast, Episode } from "../../types";
 import EpisodeItem from "../../components/EpisodeItem";
-import { useAppContext } from "../../contexts/AppContext";
-import { usePlayerContext } from "../../contexts/PlayerContext";
-import { decodeFeedUrl, decodeEpisodeId } from "../../constants/routes";
+import { useAppContext, usePlayerContext } from "../../contexts";
+import { decodeFeedUrl, decodeEpisodeId } from "../../constants";
 import { LoadingView } from "../../components/Loading";
 
 interface PodcastDetailPageProps {

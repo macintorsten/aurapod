@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, userEvent } from '../../../test-utils';
+import { act } from '@testing-library/react';
 import { PlayerContainer } from '../PlayerContainer';
 import { createMockEpisode, createMockPodcast } from '../../../test-utils';
 import * as storageService from '../../../services/storageService';
@@ -279,9 +280,11 @@ describe('PlayerContainer', () => {
     
     const playButton = screen.getByTitle('Play');
     
-    // Simulate Space key press
-    const spaceEvent = new KeyboardEvent('keydown', { key: ' ' });
-    window.dispatchEvent(spaceEvent);
+    // Simulate Space key press wrapped in act
+    await act(async () => {
+      const spaceEvent = new KeyboardEvent('keydown', { key: ' ' });
+      window.dispatchEvent(spaceEvent);
+    });
     
     await waitFor(() => {
       expect(screen.getByTitle('Pause')).toBeInTheDocument();

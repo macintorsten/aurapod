@@ -20,9 +20,8 @@ import {
   fromBase64Url,
 } from './compressor';
 
-// Re-export types and parser
-export * from './types';
-export { parseRSS } from './parser';
+// Re-export only public types
+export type { Track, Feed, CompressionOptions, CompressionResult } from './types';
 
 /**
  * Compress a track with optional auto-optimization

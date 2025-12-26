@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   createError,
   logError,
-} from '../errorHandlers';
+} from '..';
 import { AppError, ErrorCategory } from '../../types';
 
 describe('errorHandlers', () => {

@@ -8,7 +8,7 @@ Before implementing any feature, check available skills in `.github/skills/`. Us
 - `code-review` - Before merging work
 
 ## Architecture
-- **Services**: Use dependency injection pattern (see `src/services/container.ts`)
+- **Services**: Use factory function pattern for testability (see service files for examples)
 - **Components**: Prefer container/presentation split for complex components
 - **State**: Use React Context for cross-cutting concerns (see `src/contexts/`)
 - **Testing**: Test in isolation without full app setup (see `TESTING_GUIDE.md`)

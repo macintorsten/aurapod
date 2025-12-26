@@ -1,11 +1,9 @@
 import React from "react";
 
-interface SpinnerProps {
+const Spinner: React.FC<{
   size?: "sm" | "md" | "lg";
   className?: string;
-}
-
-export const Spinner: React.FC<SpinnerProps> = ({
+}> = ({
   size = "md",
   className = "",
 }) => {

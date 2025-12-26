@@ -9,7 +9,7 @@ import React, {
 import { Podcast, Episode, PlaybackState, AppError } from "../types";
 import { storageService } from "../services/storageService";
 import { rssService } from "../services/rssService";
-import { createError, logError } from "../utils/errorHandlers";
+import { createError, logError } from "../utils";
 import { APP_CONSTANTS } from "../constants";
 
 interface AppContextValue {

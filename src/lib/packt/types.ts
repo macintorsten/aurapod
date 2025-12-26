@@ -79,8 +79,9 @@ export interface CompressionResult {
 /**
  * Short key mapping for compressed format
  * Single-character keys to minimize size
+ * Internal use only - not exported from barrel
  */
-export const TRACK_KEYS = {
+const TRACK_KEYS = {
   title: 't',
   url: 'u',
   date: 'd',
@@ -89,7 +90,7 @@ export const TRACK_KEYS = {
   image: 'i',
 } as const;
 
-export const FEED_KEYS = {
+const FEED_KEYS = {
   title: 't',
   description: 'd',
   image: 'i',
@@ -97,16 +98,24 @@ export const FEED_KEYS = {
   tracks: 'tr',
 } as const;
 
+// Export for internal use within packt library
+export { TRACK_KEYS, FEED_KEYS };
+
 /**
  * Type for compressed track with short keys
+ * Internal use only
  */
-export type CompressedTrack = {
+type CompressedTrack = {
   [K in keyof typeof TRACK_KEYS]?: any;
 };
 
 /**
  * Type for compressed feed with short keys
+ * Internal use only
  */
-export type CompressedFeed = {
+type CompressedFeed = {
   [K in keyof typeof FEED_KEYS]?: any;
 };
+
+// Export for internal use within packt library
+export type { CompressedTrack, CompressedFeed };

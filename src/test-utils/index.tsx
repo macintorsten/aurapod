@@ -2,10 +2,10 @@
  * Test Utilities
  *
  * Centralized testing helpers to eliminate repetitive test setup.
- * Provides custom render function with context providers and mock service factories.
+ * Provides custom render function with context providers and mock factories.
  *
  * Usage:
- *   import { render, screen, createMockServices } from '../../test-utils';
+ *   import { render, screen } from '../../test-utils';
  *
  *   test('component behavior', () => {
  *     render(<MyComponent />, {
@@ -19,10 +19,7 @@ import { ReactElement, ReactNode } from 'react';
 import { render as rtlRender, RenderOptions } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
-import { PlayerProvider } from '../contexts/PlayerContext';
-import { UIProvider } from '../contexts/UIContext';
-import { AppProvider } from '../contexts/AppContext';
-import type { ServiceContainer } from '../services/container';
+import { PlayerProvider, UIProvider, AppProvider } from '../contexts';
 import type { Episode, Podcast, PlaybackState, Theme } from '../types';
 
 /**
@@ -112,78 +109,6 @@ export function render(
     ...rtlRender(ui, { wrapper: Wrapper, ...renderOptions }),
     user: userEvent.setup(),
   };
-}
-
-/**
- * Create mock service container for testing
- * 
- * Provides default mocks for all services with proper vi.fn() spies.
- * Override specific services as needed.
- * 
- * @param overrides - Partial service implementations to override defaults
- * @returns ServiceContainer with mocked services
- * 
- * @example
- * ```tsx
- * const mockServices = createMockServices({
- *   rssService: {
- *     fetchPodcast: vi.fn().mockResolvedValue({
- *       podcast: mockPodcast,
- *       episodes: [mockEpisode]
- *     })
- *   }
- * });
- * ```
- */
-export function createMockServices(
-  overrides?: Partial<ServiceContainer>
-): ServiceContainer {
-  const defaultMocks = {
-    rssService: {
-      fetchPodcast: vi.fn().mockResolvedValue({
-        podcast: createMockPodcast(),
-        episodes: [],
-      }),
-      searchPodcasts: vi.fn().mockResolvedValue([]),
-      getTrendingPodcasts: vi.fn().mockResolvedValue([]),
-    },
-    storageService: {
-      getPodcasts: vi.fn(() => []),
-      savePodcasts: vi.fn(),
-      getHistory: vi.fn(() => ({})),
-      updatePlayback: vi.fn(),
-      getTheme: vi.fn(() => 'light' as Theme),
-      saveTheme: vi.fn(),
-      getQueue: vi.fn(() => []),
-      saveQueue: vi.fn(),
-    },
-    castService: {
-      initialize: vi.fn().mockResolvedValue(undefined),
-      setEnabled: vi.fn(),
-      onStateChange: vi.fn(() => vi.fn()),
-      onMediaStatus: vi.fn(() => vi.fn()),
-      isPlaying: vi.fn(() => false),
-      pause: vi.fn(),
-      play: vi.fn(),
-      getCurrentTime: vi.fn(() => 0),
-      getDuration: vi.fn(() => 0),
-      seek: vi.fn(),
-      loadMedia: vi.fn().mockResolvedValue(undefined),
-      endSession: vi.fn(),
-      requestSession: vi.fn().mockResolvedValue(undefined),
-    },
-    packt: {
-      compress: vi.fn(),
-      decompress: vi.fn(),
-      compressToEncodedURIComponent: vi.fn(),
-      decompressFromEncodedURIComponent: vi.fn(),
-    },
-  };
-
-  return {
-    ...defaultMocks,
-    ...overrides,
-  } as ServiceContainer;
 }
 
 /**

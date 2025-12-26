@@ -52,7 +52,7 @@ expect(mockPackt.compressFeed).toHaveBeenCalled();
 ```
 
 **Key Points**:
-- Use `createServiceName()` factories (see `src/services/container.ts`)
+- Use `createServiceName()` factories defined in each service file
 - No cascading mocks - inject what you need
 - Test service contract, not internals
 

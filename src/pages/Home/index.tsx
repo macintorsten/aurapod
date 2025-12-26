@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Podcast } from "../../types";
 import { LoadingView } from "../../components/Loading";
-import { buildPodcastRoute } from "../../constants/routes";
+import { buildPodcastRoute } from "../../constants";
 
 interface HomePageProps {
   searchQuery: string;

@@ -8,7 +8,7 @@ applyTo: "src/services/**/*Service.ts"
 
 **Before modifying**: Use `test-driven-development` skill - write tests first.
 
-Services use dependency injection for testability:
+Services use factory functions for testability:
 
 ```typescript
 // Create factory function accepting dependencies
@@ -21,5 +21,3 @@ export const myService = createMyService({ otherService });
 ```
 
 **Testing**: Create test instances with mocked dependencies via `createMyService()` - no cascading mocks needed.
-
-**Container**: Import `ServiceContainer` type from `src/services/container.ts` for type safety.
