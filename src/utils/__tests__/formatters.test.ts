@@ -33,13 +33,7 @@ describe('formatters', () => {
       expect(result).not.toBe('Invalid timestamp');
     });
 
-    // DISABLED: This test asserts CORRECT behavior
-    // See KNOWN_BUGS.md for details
-    // Once fixed, update assertion to expect 'Invalid timestamp'
-    it.skip('BUG: should return "Invalid timestamp" for NaN input', () => {
-      // BUG: formatTimestamp doesn't properly validate invalid dates
-      // Currently returns: "Invalid Date"
-      // Should return: "Invalid timestamp"
+    it('should return "Invalid timestamp" for NaN input', () => {
       expect(formatTimestamp(NaN)).toBe('Invalid timestamp');
     });
   });

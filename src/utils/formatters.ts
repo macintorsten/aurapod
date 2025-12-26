@@ -9,6 +9,11 @@
  * Format timestamp for display (e.g., "Nov 20, 2023")
  */
 export function formatTimestamp(timestamp: number): string {
+  // Validate input first - NaN doesn't throw but creates "Invalid Date" string
+  if (isNaN(timestamp)) {
+    return "Invalid timestamp";
+  }
+  
   try {
     const date = new Date(timestamp);
     return date.toLocaleDateString("en-US", {
