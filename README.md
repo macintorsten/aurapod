@@ -29,20 +29,45 @@ This project is in active development and is expected to have bugs, particularly
 
 ## Testing
 
-1. Unit tests (Vitest):
-   ```bash
-   npm run test:unit
-   ```
-2. Watch mode:
-   ```bash
-   npm run test:watch
-   ```
-3. End-to-end tests (Playwright):
-   ```bash
-   npm run test:e2e
-   ```
+### Running Tests Locally
+
+**Unit Tests (Vitest):**
+```bash
+# Run all unit tests once
+npm test
+
+# Run with coverage report
+npm run test:unit
+
+# Watch mode for development (re-runs tests on file changes)
+npm run test:watch
+```
+
+**End-to-End Tests (Playwright):**
+```bash
+# Run E2E tests (builds the app first)
+npm run test:e2e
+
+# Run E2E tests with UI for debugging
+npm run test:e2e:ui
+```
 
 If E2E fails locally due to missing browsers, run:
 ```bash
 npx playwright install chromium
 ```
+
+### Type Checking
+
+**TypeScript Type Checking:**
+```bash
+# Check for TypeScript errors without building
+npx tsc --noEmit
+
+# Build the project (includes type checking)
+npm run build
+```
+
+**Best Practice**: Run `npx tsc --noEmit` before pushing to catch type errors early.
+
+For detailed testing patterns and best practices, see [TESTING_GUIDE.md](TESTING_GUIDE.md).
