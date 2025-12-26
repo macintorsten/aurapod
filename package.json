@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest",
+    "test": "vitest run",
     "test:unit": "vitest run --coverage",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:ui": "npm run build && playwright test --ui",
@@ -15,7 +15,9 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@msgpack/msgpack": "^3.1.2",
     "canvas-confetti": "^1.9.3",
+    "fflate": "^0.8.2",
     "pako": "^2.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

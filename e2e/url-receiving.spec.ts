@@ -30,17 +30,22 @@ test.describe('URL Receiving - Share Modes', () => {
   });
 
   test('should handle embedded-payload mode URL (query param)', async ({ page }) => {
-    // Create a simple test payload
-    const testData = {
-      shareType: 'track',
-      shareMode: 'embedded-payload',
-      t: 'Test Episode',
-      u: 'https://example.com/audio.mp3',
-      st: 'Test Podcast',
+    // Create a simple test Feed
+    const testFeed = {
+      title: 'Test Podcast',
+      description: null,
+      url: null,
+      tracks: [{
+        title: 'Test Episode',
+        url: 'https://example.com/audio.mp3',
+        description: null,
+        date: null,
+        duration: null
+      }]
     };
     
-    // Manually encode (simplified for test - in real app use shareService.encode)
-    const json = JSON.stringify(testData);
+    // Manually encode using base64url (simplified for test)
+    const json = JSON.stringify(testFeed);
     const encoded = btoa(json).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     
     await page.goto(`/#/?s=${encoded}`);

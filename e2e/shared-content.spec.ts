@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { shareService, SharedData } from '../src/services/shareService';
+import { shareService, Feed } from '../src/services/shareService';
 
 test.describe('Shared Content - Virtual Podcasts', () => {
   test.beforeEach(async ({ page }) => {
@@ -9,17 +9,20 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
   test('should display shared single track as virtual podcast', async ({ page }) => {
     // Create a shared single track
-    const sharedData: SharedData = {
-      shareType: 'track',
-      shareMode: 'embedded-payload',
-      t: 'Test Shared Episode',
-      u: 'https://example.com/test-audio.mp3',
-      d: 'This is a test shared episode',
-      st: 'Test Shared Podcast',
-      si: 'https://example.com/podcast-image.jpg',
+    const feed: Feed = {
+      title: 'Test Shared Podcast',
+      description: null,
+      url: null,
+      tracks: [{
+        title: 'Test Shared Episode',
+        url: 'https://example.com/test-audio.mp3',
+        description: 'This is a test shared episode',
+        date: null,
+        duration: null
+      }]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     // Wait for navigation to shared podcast view
@@ -46,33 +49,29 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
   test('should display shared manifest as virtual podcast with multiple episodes', async ({ page }) => {
     // Create a shared manifest with multiple episodes
-    const sharedData: SharedData = {
-      shareType: 'rss',
-      shareMode: 'full-manifest',
-      pt: 'Shared Multi-Episode Podcast',
-      pi: 'https://example.com/podcast.jpg',
-      pd: 'A collection of shared episodes',
-      episodes: [
+    const feed: Feed = {
+      title: 'Shared Multi-Episode Podcast',
+      description: 'A collection of shared episodes',
+      url: null,
+      tracks: [
         {
-          id: 'ep1',
           title: 'Episode 1',
-          audioUrl: 'https://example.com/ep1.mp3',
+          url: 'https://example.com/ep1.mp3',
           description: 'First episode',
-          duration: '30:00',
-          pubDate: '2025-01-01',
+          date: Math.floor(new Date('2025-01-01').getTime() / 1000),
+          duration: 1800
         },
         {
-          id: 'ep2',
           title: 'Episode 2',
-          audioUrl: 'https://example.com/ep2.mp3',
+          url: 'https://example.com/ep2.mp3',
           description: 'Second episode',
-          duration: '45:00',
-          pubDate: '2025-01-02',
-        },
-      ],
+          date: Math.floor(new Date('2025-01-02').getTime() / 1000),
+          duration: 2700
+        }
+      ]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     await page.waitForLoadState('networkidle');
@@ -98,15 +97,20 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
   test('should allow playing episodes from shared content', async ({ page }) => {
     // Create a shared single track
-    const sharedData: SharedData = {
-      shareType: 'track',
-      shareMode: 'embedded-payload',
-      t: 'Playable Shared Episode',
-      u: 'https://example.com/audio.mp3',
-      st: 'Playable Podcast',
+    const feed: Feed = {
+      title: 'Playable Podcast',
+      description: null,
+      url: null,
+      tracks: [{
+        title: 'Playable Shared Episode',
+        url: 'https://example.com/audio.mp3',
+        description: null,
+        date: null,
+        duration: null
+      }]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     await page.waitForLoadState('networkidle');
@@ -136,15 +140,20 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
   test('should preserve shared content across page navigation', async ({ page }) => {
     // Create shared content
-    const sharedData: SharedData = {
-      shareType: 'track',
-      shareMode: 'embedded-payload',
-      t: 'Persistent Episode',
-      u: 'https://example.com/persistent.mp3',
-      st: 'Persistent Podcast',
+    const feed: Feed = {
+      title: 'Persistent Podcast',
+      description: null,
+      url: null,
+      tracks: [{
+        title: 'Persistent Episode',
+        url: 'https://example.com/persistent.mp3',
+        description: null,
+        date: null,
+        duration: null
+      }]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     await page.waitForLoadState('networkidle');
@@ -168,20 +177,20 @@ test.describe('Shared Content - Virtual Podcasts', () => {
   });
 
   test('should display virtual podcast description correctly', async ({ page }) => {
-    const sharedData: SharedData = {
-      shareType: 'rss',
-      shareMode: 'full-manifest',
-      pt: 'Descriptive Podcast',
-      pd: 'This is a detailed description of the shared podcast content.',
-      pi: 'https://example.com/podcast.jpg',
-      episodes: [{
-        id: 'ep1',
+    const feed: Feed = {
+      title: 'Descriptive Podcast',
+      description: 'This is a detailed description of the shared podcast content.',
+      url: null,
+      tracks: [{
         title: 'Episode 1',
-        audioUrl: 'https://example.com/ep1.mp3',
-      }],
+        url: 'https://example.com/ep1.mp3',
+        description: null,
+        date: null,
+        duration: null
+      }]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     await page.waitForLoadState('networkidle');
@@ -193,14 +202,20 @@ test.describe('Shared Content - Virtual Podcasts', () => {
 
   test('should show default values for missing shared content fields', async ({ page }) => {
     // Create minimal shared data
-    const sharedData: SharedData = {
-      shareType: 'track',
-      shareMode: 'embedded-payload',
-      t: 'Minimal Episode',
-      u: 'https://example.com/minimal.mp3',
+    const feed: Feed = {
+      title: null,
+      description: null,
+      url: null,
+      tracks: [{
+        title: 'Minimal Episode',
+        url: 'https://example.com/minimal.mp3',
+        description: null,
+        date: null,
+        duration: null
+      }]
     };
 
-    const encoded = shareService.encode(sharedData);
+    const encoded = shareService.encode(feed);
     await page.goto(`/#/?s=${encoded}`);
     
     await page.waitForLoadState('networkidle');
