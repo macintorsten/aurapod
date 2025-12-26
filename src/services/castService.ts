@@ -1,3 +1,8 @@
+/**
+ * Google Cast integration service
+ * Provides Chromecast functionality for streaming audio to Cast-enabled devices
+ */
+
 import { Episode, Podcast } from '../types';
 
 declare global {
@@ -80,213 +85,288 @@ type CastMediaStatusListener = (status: {
   duration: number;
 }) => void;
 
-class CastService {
-  private isInitialized = false;
-  private isEnabled = true;
-  private castContext: CastContext | null = null;
-  private remotePlayer: RemotePlayer | null = null;
-  private remotePlayerController: RemotePlayerController | null = null;
-  private stateChangeListeners: CastStateChangeListener[] = [];
-  private mediaStatusListeners: CastMediaStatusListener[] = [];
-  
-  setEnabled(enabled: boolean): void {
-    this.isEnabled = enabled;
-  }
-  
-  async initialize(): Promise<boolean> {
-    if (!this.isEnabled) {
+/**
+ * Cast service dependencies (none currently, but structure for future extensibility)
+ */
+export interface CastServiceDependencies {}
+
+/**
+ * Creates a Cast service instance
+ * @param deps - Service dependencies
+ * @returns Cast service API
+ */
+export const createCastService = (deps: CastServiceDependencies = {}) => {
+  let isInitialized = false;
+  let isEnabled = true;
+  let castContext: CastContext | null = null;
+  let remotePlayer: RemotePlayer | null = null;
+  let remotePlayerController: RemotePlayerController | null = null;
+  let stateChangeListeners: CastStateChangeListener[] = [];
+  let mediaStatusListeners: CastMediaStatusListener[] = [];
+
+  /**
+   * Enable or disable Cast functionality
+   * @param enabled - Whether Cast should be enabled
+   */
+  const setEnabled = (enabled: boolean): void => {
+    isEnabled = enabled;
+  };
+
+  /**
+   * Initialize the Cast SDK
+   * @returns Promise resolving to true if initialized successfully
+   */
+  const initialize = async (): Promise<boolean> => {
+    if (!isEnabled) {
       return false;
     }
-    
-    if (this.isInitialized) return true;
-    
-    // Check if Cast API script is loaded (online check)
-    if (!window.__onGCastApiAvailable && !window.cast) {
-      console.warn('Cast API not loaded - may be offline or blocked');
-      return false;
-    }
-    
+
+    if (isInitialized) return true;
+
     return new Promise((resolve) => {
+      if (typeof window === 'undefined' || !window.chrome?.cast) {
+        resolve(false);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+      script.async = true;
+
       window.__onGCastApiAvailable = (isAvailable: boolean) => {
-        if (!isAvailable) {
-          console.warn('Google Cast API not available');
+        if (!isAvailable || !window.cast) {
           resolve(false);
           return;
         }
 
         try {
-          const cast = window.cast;
-          const chrome = window.chrome;
-          if (!cast || !chrome) {
-            resolve(false);
-            return;
-          }
-
-          this.castContext = cast.framework.CastContext.getInstance();
-          this.castContext.setOptions({
-            receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
-            autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+          castContext = window.cast.framework.CastContext.getInstance();
+          castContext.setOptions({
+            receiverApplicationId: window.chrome!.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+            autoJoinPolicy: window.chrome!.cast.AutoJoinPolicy.ORIGIN_SCOPED,
           });
 
-          // Initialize remote player
-          this.remotePlayer = new cast.framework.RemotePlayer();
-          this.remotePlayerController = new cast.framework.RemotePlayerController(this.remotePlayer);
+          remotePlayer = new window.cast.framework.RemotePlayer();
+          remotePlayerController = new window.cast.framework.RemotePlayerController(remotePlayer);
 
-          // Listen for connection changes
-          this.remotePlayerController.addEventListener(
-            cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
-            () => this.handleConnectionChange()
+          remotePlayerController.addEventListener(
+            window.cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+            () => {
+              if (remotePlayer) {
+                const deviceName = remotePlayer.isConnected
+                  ? remotePlayer.displayName
+                  : undefined;
+                stateChangeListeners.forEach((listener) =>
+                  listener(remotePlayer!.isConnected, deviceName)
+                );
+              }
+            }
           );
 
-          // Listen for playback state changes
-          this.remotePlayerController.addEventListener(
-            cast.framework.RemotePlayerEventType.IS_PLAYING_CHANGED,
-            () => this.handlePlaybackChange()
+          remotePlayerController.addEventListener(
+            window.cast.framework.RemotePlayerEventType.IS_PLAYING_CHANGED,
+            () => {
+              if (remotePlayer && remotePlayer.isMediaLoaded) {
+                mediaStatusListeners.forEach((listener) =>
+                  listener({
+                    isPlaying: remotePlayer!.isPlaying,
+                    currentTime: remotePlayer!.currentTime,
+                    duration: remotePlayer!.duration,
+                  })
+                );
+              }
+            }
           );
 
-          // Listen for time updates
-          this.remotePlayerController.addEventListener(
-            cast.framework.RemotePlayerEventType.CURRENT_TIME_CHANGED,
-            () => this.handlePlaybackChange()
+          remotePlayerController.addEventListener(
+            window.cast.framework.RemotePlayerEventType.CURRENT_TIME_CHANGED,
+            () => {
+              if (remotePlayer && remotePlayer.isMediaLoaded) {
+                mediaStatusListeners.forEach((listener) =>
+                  listener({
+                    isPlaying: remotePlayer!.isPlaying,
+                    currentTime: remotePlayer!.currentTime,
+                    duration: remotePlayer!.duration,
+                  })
+                );
+              }
+            }
           );
 
-          this.isInitialized = true;
+          isInitialized = true;
           resolve(true);
         } catch (error) {
-          console.error('Failed to initialize Cast service:', error);
+          console.error('Failed to initialize Cast:', error);
           resolve(false);
         }
       };
+
+      document.head.appendChild(script);
     });
-  }
+  };
 
-  private handleConnectionChange() {
-    const isConnected = this.remotePlayer?.isConnected || false;
-    const deviceName = this.getDeviceName();
-    this.stateChangeListeners.forEach(listener => listener(isConnected, deviceName));
-  }
+  /**
+   * Check if currently connected to a Cast device
+   * @returns true if connected to Cast device
+   */
+  const isConnected = (): boolean => {
+    return remotePlayer?.isConnected ?? false;
+  };
 
-  private handlePlaybackChange() {
-    if (!this.remotePlayer || !this.isConnected()) return;
-    
-    const status = {
-      isPlaying: this.remotePlayer.isPlaying,
-      currentTime: this.remotePlayer.currentTime,
-      duration: this.remotePlayer.duration,
-    };
-    
-    this.mediaStatusListeners.forEach(listener => listener(status));
-  }
+  /**
+   * Check if media is currently playing on Cast device
+   * @returns true if playing
+   */
+  const isPlaying = (): boolean => {
+    return remotePlayer?.isPlaying ?? false;
+  };
 
-  isConnected(): boolean {
-    return this.remotePlayer?.isConnected || false;
-  }
+  /**
+   * Get current playback time from Cast device
+   * @returns Current time in seconds
+   */
+  const getCurrentTime = (): number => {
+    return remotePlayer?.currentTime ?? 0;
+  };
 
-  getDeviceName(): string | undefined {
-    if (!this.isConnected() || !this.castContext) return undefined;
-    const session = this.castContext.getCurrentSession();
-    return session?.getSessionObj()?.receiver?.friendlyName;
-  }
+  /**
+   * Get media duration from Cast device
+   * @returns Duration in seconds
+   */
+  const getDuration = (): number => {
+    return remotePlayer?.duration ?? 0;
+  };
 
-  async requestSession(): Promise<void> {
-    if (!this.castContext) {
-      throw new Error('Cast service not initialized');
+  /**
+   * Pause playback on Cast device
+   */
+  const pause = (): void => {
+    if (remotePlayer?.isPlaying && remotePlayerController) {
+      remotePlayerController.playOrPause();
     }
-    await this.castContext.requestSession();
-  }
+  };
 
-  async loadMedia(episode: Episode, podcast: Podcast, startTime?: number): Promise<void> {
-    if (!this.castContext) {
-      throw new Error('Cast service not initialized');
+  /**
+   * Resume playback on Cast device
+   */
+  const play = (): void => {
+    if (!remotePlayer?.isPlaying && remotePlayerController) {
+      remotePlayerController.playOrPause();
+    }
+  };
+
+  /**
+   * Seek to a specific time on Cast device
+   * @param time - Time in seconds
+   */
+  const seek = (time: number): void => {
+    if (remotePlayer && remotePlayerController) {
+      remotePlayer.currentTime = time;
+      remotePlayerController.seek();
+    }
+  };
+
+  /**
+   * Load and play media on Cast device
+   * @param episode - Episode to play
+   * @param podcast - Podcast metadata
+   * @returns Promise that resolves when media is loaded
+   */
+  const loadMedia = async (episode: Episode, podcast: Podcast): Promise<void> => {
+    if (!castContext || !window.chrome?.cast) {
+      throw new Error('Cast not initialized');
     }
 
-    const chrome = window.chrome;
-    if (!chrome) {
-      throw new Error('Chrome Cast API not available');
-    }
-
-    const session = this.castContext.getCurrentSession();
+    const session = castContext.getCurrentSession();
     if (!session) {
-      throw new Error('No active cast session');
+      throw new Error('No active Cast session');
     }
 
-    const mediaInfo = new chrome.cast.media.MediaInfo(episode.audioUrl, 'audio/mpeg');
-    mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
-    mediaInfo.metadata.title = episode.title;
-    mediaInfo.metadata.artist = podcast.title;
-    mediaInfo.metadata.albumName = podcast.title;
-    
-    if (episode.image || podcast.image) {
-      mediaInfo.metadata.images = [
-        new chrome.cast.Image(episode.image || podcast.image)
-      ];
+    const mediaInfo = new window.chrome.cast.media.MediaInfo(
+      episode.audioUrl,
+      'audio/mpeg'
+    );
+
+    const metadata = new window.chrome.cast.media.MusicTrackMediaMetadata();
+    metadata.title = episode.title;
+    metadata.albumName = podcast.title;
+    metadata.artist = podcast.author;
+
+    if (episode.image) {
+      metadata.images = [new window.chrome.cast.Image(episode.image)];
     }
 
-    const request = new chrome.cast.media.LoadRequest(mediaInfo);
-    if (startTime) {
-      request.currentTime = startTime;
-    }
+    mediaInfo.metadata = metadata;
+
+    const request = new window.chrome.cast.media.LoadRequest(mediaInfo);
     request.autoplay = true;
 
     await session.loadMedia(request);
-  }
+  };
 
-  play(): void {
-    if (this.remotePlayerController && this.remotePlayer && !this.remotePlayer.isPlaying) {
-      this.remotePlayerController.playOrPause();
+  /**
+   * Request a new Cast session (show device picker)
+   * @returns Promise that resolves when session is established
+   */
+  const requestSession = async (): Promise<void> => {
+    if (!castContext) {
+      throw new Error('Cast not initialized');
     }
-  }
+    await castContext.requestSession();
+  };
 
-  pause(): void {
-    if (this.remotePlayerController && this.remotePlayer && this.remotePlayer.isPlaying) {
-      this.remotePlayerController.playOrPause();
+  /**
+   * End the current Cast session
+   */
+  const endSession = (): void => {
+    if (castContext) {
+      castContext.endCurrentSession(true);
     }
-  }
+  };
 
-  stop(): void {
-    if (this.remotePlayerController) {
-      this.remotePlayerController.stop();
-    }
-  }
-
-  seek(time: number): void {
-    if (this.remotePlayer && this.remotePlayerController) {
-      this.remotePlayer.currentTime = time;
-      this.remotePlayerController.seek();
-    }
-  }
-
-  getCurrentTime(): number {
-    return this.remotePlayer?.currentTime || 0;
-  }
-
-  getDuration(): number {
-    return this.remotePlayer?.duration || 0;
-  }
-
-  isPlaying(): boolean {
-    return this.remotePlayer?.isPlaying || false;
-  }
-
-  endSession(): void {
-    if (this.castContext) {
-      this.castContext.endCurrentSession(true);
-    }
-  }
-
-  onStateChange(listener: CastStateChangeListener): () => void {
-    this.stateChangeListeners.push(listener);
+  /**
+   * Subscribe to Cast connection state changes
+   * @param listener - Callback for state changes
+   * @returns Unsubscribe function
+   */
+  const onStateChange = (listener: CastStateChangeListener): (() => void) => {
+    stateChangeListeners.push(listener);
     return () => {
-      this.stateChangeListeners = this.stateChangeListeners.filter(l => l !== listener);
+      stateChangeListeners = stateChangeListeners.filter((l) => l !== listener);
     };
-  }
+  };
 
-  onMediaStatus(listener: CastMediaStatusListener): () => void {
-    this.mediaStatusListeners.push(listener);
+  /**
+   * Subscribe to Cast media status changes
+   * @param listener - Callback for media status updates
+   * @returns Unsubscribe function
+   */
+  const onMediaStatus = (listener: CastMediaStatusListener): (() => void) => {
+    mediaStatusListeners.push(listener);
     return () => {
-      this.mediaStatusListeners = this.mediaStatusListeners.filter(l => l !== listener);
+      mediaStatusListeners = mediaStatusListeners.filter((l) => l !== listener);
     };
-  }
-}
+  };
 
-export const castService = new CastService();
+  return {
+    setEnabled,
+    initialize,
+    isConnected,
+    isPlaying,
+    getCurrentTime,
+    getDuration,
+    pause,
+    play,
+    seek,
+    loadMedia,
+    requestSession,
+    endSession,
+    onStateChange,
+    onMediaStatus,
+  };
+};
+
+/**
+ * Default Cast service instance
+ */
+export const castService = createCastService();

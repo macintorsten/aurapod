@@ -2,12 +2,21 @@ import { useState, useRef, useCallback } from 'react';
 import { Podcast } from '../types';
 import { rssService } from '../services/rssService';
 
+/**
+ * Hook for podcast search with debouncing and error handling
+ * @param onError - Optional callback for handling search errors
+ * @returns Search state and functions
+ */
 export const usePodcastSearch = (onError?: (err: any, query: string) => void) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Podcast[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = useRef<number | null>(null);
 
+  /**
+   * Search for podcasts with 500ms debounce
+   * @param query - Search query string
+   */
   const search = useCallback(async (query: string) => {
     setSearchQuery(query);
     if (searchTimeoutRef.current) window.clearTimeout(searchTimeoutRef.current);
@@ -30,6 +39,9 @@ export const usePodcastSearch = (onError?: (err: any, query: string) => void) =>
     }, 500);
   }, [onError]);
 
+  /**
+   * Clear search query and results
+   */
   const clearSearch = useCallback(() => {
     setSearchQuery('');
     setSearchResults([]);

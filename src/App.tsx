@@ -4,7 +4,7 @@ import { Podcast, Episode, PlaybackState } from "./types";
 import { rssService } from "./services/rssService";
 import { shareService, Feed, ShareType } from "./services/shareService";
 import { storageService } from "./services/storageService";
-import Player from "./components/Player";
+import { PlayerContainer } from "./components/Player/PlayerContainer";
 import { useQueue } from "./hooks/useQueue";
 import { usePodcastSearch } from "./hooks/usePodcastSearch";
 import { MainLayout } from "./components/Layout";
@@ -427,7 +427,7 @@ const AppContent: React.FC = () => {
       </div>
 
       {currentEpisode && playerPodcast && (
-        <Player
+        <PlayerContainer
           episode={currentEpisode}
           podcast={playerPodcast}
           queue={queue}

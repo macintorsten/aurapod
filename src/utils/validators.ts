@@ -4,6 +4,8 @@
 
 /**
  * Validate URL format
+ * @param url - URL string to validate
+ * @returns true if valid URL, false otherwise
  */
 export function isValidUrl(url: string): boolean {
   if (!url) return false;
@@ -18,6 +20,8 @@ export function isValidUrl(url: string): boolean {
 
 /**
  * Validate RSS/XML feed URL
+ * @param url - URL to check for feed patterns
+ * @returns true if URL matches common feed patterns
  */
 export function isValidFeedUrl(url: string): boolean {
   if (!isValidUrl(url)) return false;
@@ -36,6 +40,8 @@ export function isValidFeedUrl(url: string): boolean {
 
 /**
  * Validate audio URL
+ * @param url - URL to check for audio file extension
+ * @returns true if URL contains common audio file extension
  */
 export function isValidAudioUrl(url: string): boolean {
   if (!isValidUrl(url)) return false;
@@ -47,17 +53,9 @@ export function isValidAudioUrl(url: string): boolean {
 }
 
 /**
- * Validate email format
- */
-export function isValidEmail(email: string): boolean {
-  if (!email) return false;
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
  * Sanitize HTML string (basic XSS protection)
+ * @param html - HTML string to sanitize
+ * @returns Sanitized HTML string with only text content
  */
 export function sanitizeHtml(html: string): string {
   if (!html) return "";
@@ -69,6 +67,8 @@ export function sanitizeHtml(html: string): string {
 
 /**
  * Check if string is empty or whitespace
+ * @param str - String to check
+ * @returns true if string is null, undefined, or only whitespace
  */
 export function isEmpty(str: string | null | undefined): boolean {
   return !str || str.trim().length === 0;
@@ -76,6 +76,8 @@ export function isEmpty(str: string | null | undefined): boolean {
 
 /**
  * Validate playback progress (0-1)
+ * @param progress - Progress value to validate
+ * @returns true if progress is a finite number between 0 and 1
  */
 export function isValidProgress(progress: number): boolean {
   return (
@@ -85,3 +87,4 @@ export function isValidProgress(progress: number): boolean {
     progress <= 1
   );
 }
+

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import Player from "../Player";
+import { PlayerContainer } from "../Player/PlayerContainer";
 import { Episode, Podcast } from "../../types";
 
 // Mock services
@@ -29,7 +29,7 @@ vi.mock("../../services/castService", () => ({
   },
 }));
 
-describe("Player", () => {
+describe("PlayerContainer", () => {
   const mockEpisode: Episode = {
     id: "ep1",
     podcastId: "pod1",
@@ -70,12 +70,12 @@ describe("Player", () => {
   });
 
   it("should render the player component", () => {
-    const { container } = render(<Player {...defaultProps} />);
+    const { container } = render(<PlayerContainer {...defaultProps} />);
     expect(container).toBeTruthy();
   });
 
   it("should render as part of the layout flow (not fixed)", () => {
-    const { container } = render(<Player {...defaultProps} />);
+    const { container } = render(<PlayerContainer {...defaultProps} />);
     const playerWrapper = container.querySelector(".shrink-0.z-50");
     
     expect(playerWrapper).toBeTruthy();
@@ -85,35 +85,35 @@ describe("Player", () => {
   });
 
   it("should display episode title", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     expect(screen.getByText("Test Episode")).toBeInTheDocument();
   });
 
   it("should display podcast title", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     expect(screen.getByText("Test Podcast")).toBeInTheDocument();
   });
 
   it("should have play/pause controls", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     const playButton = screen.getByRole("button", { name: "Play" });
     expect(playButton).toBeInTheDocument();
   });
 
   it("should have skip forward button", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     const skipButton = screen.getByRole("button", { name: /skip forward/i });
     expect(skipButton).toBeInTheDocument();
   });
 
   it("should have skip backward button", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     const skipButton = screen.getByRole("button", { name: /skip back/i });
     expect(skipButton).toBeInTheDocument();
   });
 
   it("should display close button", () => {
-    render(<Player {...defaultProps} />);
+    render(<PlayerContainer {...defaultProps} />);
     const closeButton = screen.getByRole("button", { name: /close|×/i });
     expect(closeButton).toBeInTheDocument();
   });
@@ -123,7 +123,7 @@ describe("Player", () => {
       ...defaultProps,
       queue: [mockEpisode],
     };
-    render(<Player {...propsWithQueue} />);
+    render(<PlayerContainer {...propsWithQueue} />);
     const queueButton = screen.getByRole("button", { name: /queue|list/i });
     expect(queueButton).toBeInTheDocument();
   });

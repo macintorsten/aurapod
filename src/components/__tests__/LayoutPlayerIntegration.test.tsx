@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { HashRouter } from "react-router-dom";
 import { MainLayout } from "../Layout/MainLayout";
-import Player from "../Player";
+import { PlayerContainer } from "../Player/PlayerContainer";
 import { Podcast, Episode, Theme } from "../../types";
 
 // Mock services
@@ -81,7 +81,7 @@ describe("Layout with Player Integration", () => {
               <div>Test Content</div>
             </MainLayout>
           </div>
-          <Player
+          <PlayerContainer
             episode={mockEpisode}
             podcast={mockPodcasts[0]}
             queue={[]}
@@ -162,7 +162,7 @@ describe("Layout with Player Integration", () => {
               <div>Test Content</div>
             </MainLayout>
           </div>
-          <Player
+          <PlayerContainer
             episode={mockEpisode}
             podcast={mockPodcasts[0]}
             queue={[]}
@@ -210,7 +210,7 @@ describe("Layout with Player Integration", () => {
               <div>Test Content</div>
             </MainLayout>
           </div>
-          <Player
+          <PlayerContainer
             episode={mockEpisode}
             podcast={mockPodcasts[0]}
             queue={[]}

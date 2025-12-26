@@ -80,6 +80,88 @@ expect(result.current.queue).toContainEqual(episode);
 
 **Key Point**: Wrap state updates in `act()`.
 
+## Testing Audio Components
+
+**Challenge**: JSDOM doesn't implement the Audio API, so components that create `new Audio()` will fail.
+
+**Solution**: Create a MockAudio class that simulates the Audio API behavior.
+
+```typescript
+// In your test file
+class MockAudio {
+  src = '';
+  currentTime = 0;
+  duration = 100;
+  playbackRate = 1;
+  paused = true;
+  
+  private listeners: Record<string, Array<(event?: any) => void>> = {};
+  
+  async play() {
+    this.paused = false;
+    this.trigger('play');
+    return Promise.resolve();
+  }
+  
+  pause() {
+    this.paused = true;
+    this.trigger('pause');
+  }
+  
+  addEventListener(event: string, handler: (event?: any) => void) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(handler);
+    
+    // Auto-trigger loadedmetadata for tests
+    if (event === 'loadedmetadata') {
+      setTimeout(() => handler(), 0);
+    }
+  }
+  
+  removeEventListener(event: string, handler: (event?: any) => void) {
+    if (this.listeners[event]) {
+      this.listeners[event] = this.listeners[event].filter(h => h !== handler);
+    }
+  }
+  
+  // Helper for tests to simulate events
+  trigger(event: string, data?: any) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(handler => handler(data));
+    }
+  }
+}
+
+// Apply mock globally
+global.Audio = MockAudio as any;
+```
+
+**Key Points**:
+- Implement `play()`, `pause()`, `addEventListener()`, `removeEventListener()`
+- Auto-trigger `loadedmetadata` event for tests (avoids waiting for real load)
+- Expose `trigger()` method to simulate events like `timeupdate`, `ended`, etc.
+- See `PlayerContainer.test.tsx` for full example
+
+**Example Usage**:
+```typescript
+const { result } = render(<PlayerContainer {...props} />);
+
+// Audio element is created internally
+const audio = result.container.querySelector('audio'); // Won't exist in MockAudio
+// Instead, test behavior through user interactions
+
+// Simulate time updates
+const mockAudio = (global.Audio as any).instance; // If you track instances
+mockAudio.currentTime = 30;
+mockAudio.trigger('timeupdate');
+
+await waitFor(() => {
+  expect(props.onProgress).toHaveBeenCalledWith(30, 100);
+});
+```
+
 ## TDD Workflow
 
 1. **Write failing test** - Define expected behavior
