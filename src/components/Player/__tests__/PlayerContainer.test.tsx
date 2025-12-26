@@ -88,7 +88,7 @@ describe('PlayerContainer', () => {
     
     // Setup default cast service mocks
     vi.spyOn(castService.castService, 'setEnabled').mockImplementation(() => {});
-    vi.spyOn(castService.castService, 'initialize').mockResolvedValue(undefined);
+    vi.spyOn(castService.castService, 'initialize').mockResolvedValue(false);
     vi.spyOn(castService.castService, 'onStateChange').mockReturnValue(() => {});
     vi.spyOn(castService.castService, 'onMediaStatus').mockReturnValue(() => {});
     vi.spyOn(castService.castService, 'isPlaying').mockReturnValue(false);
@@ -146,8 +146,7 @@ describe('PlayerContainer', () => {
       mockEpisode,
       mockPodcast,
       expect.any(Number),
-      expect.any(Number),
-      expect.any(Boolean)
+      expect.any(Number)
     );
   });
 
@@ -205,10 +204,9 @@ describe('PlayerContainer', () => {
         currentTime: 120,
         duration: 300,
         completed: false,
-        lastPlayed: Date.now(),
+        lastUpdated: Date.now(),
         podcastId: mockPodcast.id,
         podcastTitle: mockPodcast.title,
-        episodeTitle: mockEpisode.title,
       },
     };
     
@@ -228,10 +226,9 @@ describe('PlayerContainer', () => {
         currentTime: 120,
         duration: 300,
         completed: true, // Marked as completed
-        lastPlayed: Date.now(),
+        lastUpdated: Date.now(),
         podcastId: mockPodcast.id,
         podcastTitle: mockPodcast.title,
-        episodeTitle: mockEpisode.title,
       },
     };
     

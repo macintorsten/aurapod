@@ -3,6 +3,7 @@ import { Episode, Podcast } from '../../types';
 import { storageService } from '../../services/storageService';
 import { castService } from '../../services/castService';
 import { APP_CONFIG } from '../../config';
+import { APP_CONSTANTS } from '../../constants';
 import { PlayerPresentation } from './PlayerPresentation';
 
 export interface PlayerContainerProps {
@@ -222,7 +223,7 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
 
   // Save progress helper
   const saveProgress = useCallback((currentTime: number, duration: number, completed = false) => {
-    storageService.updatePlayback(episode, podcast, currentTime, duration, completed);
+    storageService.updatePlayback(episode, podcast, currentTime, duration);
     onProgress?.(episode.id, currentTime, duration);
   }, [episode, podcast, onProgress]);
 
@@ -283,13 +284,19 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   }, []);
 
   // Cast episode
-  const handleCast = useCallback(() => {
+  const handleCast = useCallback(async () => {
     if (!isCasting) {
-      castService.castEpisode(episode, podcast, currentTime);
+      try {
+        await castService.requestSession();
+        await castService.loadMedia(episode, podcast);
+      } catch (error) {
+        console.error('Failed to cast:', error);
+        setErrorMessage('Failed to connect to Cast device');
+      }
     } else {
-      castService.disconnect();
+      castService.endSession();
     }
-  }, [isCasting, episode, podcast, currentTime]);
+  }, [isCasting, episode, podcast]);
 
   return (
     <PlayerPresentation
@@ -299,23 +306,22 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
       isPlaying={isPlaying}
       isBuffering={isBuffering}
       isCasting={isCasting}
+      isCastAvailable={APP_CONFIG.cast.enabled}
       castDeviceName={castDeviceName}
       currentTime={currentTime}
       duration={duration}
       playbackRate={playbackRate}
+      speeds={[...APP_CONSTANTS.PLAYBACK_SPEEDS]}
       showQueue={showQueue}
-      showSpeedMenu={showSpeedMenu}
-      errorMessage={errorMessage}
       onTogglePlay={togglePlay}
       onSkipBackward={() => skipSeconds(-10)}
       onSkipForward={() => skipSeconds(10)}
       onNext={onNext}
       onSeek={seekToPercentage}
-      onChangePlaybackRate={changePlaybackRate}
-      onToggleQueue={() => setShowQueue(!showQueue)}
-      onToggleSpeedMenu={() => setShowSpeedMenu(!showSpeedMenu)}
-      onCast={handleCast}
       onShare={onShare}
+      onToggleQueue={() => setShowQueue(!showQueue)}
+      onToggleCast={handleCast}
+      onChangeSpeed={() => setShowSpeedMenu(!showSpeedMenu)}
       onClose={onClose}
       onRemoveFromQueue={onRemoveFromQueue}
       onClearQueue={onClearQueue}

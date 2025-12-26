@@ -229,10 +229,9 @@ export function createMockPlaybackState(
     episodeId: 'ep-test-1',
     podcastId: 'pod-test-1',
     podcastTitle: 'Test Podcast',
-    episodeTitle: 'Test Episode',
     currentTime: 0,
     duration: 1800,
-    lastPlayed: Date.now(),
+    lastUpdated: Date.now(),
     completed: false,
     ...overrides,
   };
