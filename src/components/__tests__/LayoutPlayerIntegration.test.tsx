@@ -175,7 +175,10 @@ describe("Layout with Player Integration", () => {
   it("should position player and layout in a flex column container", () => {
     const { container } = render(
       <HashRouter>
-        <div className="h-screen flex flex-col overflow-hidden" data-testid="app-container">
+        <div
+          className="h-screen flex flex-col overflow-hidden"
+          data-testid="app-container"
+        >
           <div className="flex-1 overflow-hidden" data-testid="layout-wrapper">
             <MainLayout
               podcasts={mockPodcasts}
@@ -208,13 +211,17 @@ describe("Layout with Player Integration", () => {
     );
 
     // Verify the container structure
-    const appContainer = container.querySelector('[data-testid="app-container"]');
+    const appContainer = container.querySelector(
+      '[data-testid="app-container"]'
+    );
     expect(appContainer).toBeTruthy();
     expect(appContainer?.classList.contains("flex")).toBe(true);
     expect(appContainer?.classList.contains("flex-col")).toBe(true);
 
     // Verify layout wrapper takes flex-1
-    const layoutWrapper = container.querySelector('[data-testid="layout-wrapper"]');
+    const layoutWrapper = container.querySelector(
+      '[data-testid="layout-wrapper"]'
+    );
     expect(layoutWrapper).toBeTruthy();
     expect(layoutWrapper?.classList.contains("flex-1")).toBe(true);
 

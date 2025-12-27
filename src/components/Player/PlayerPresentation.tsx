@@ -1,12 +1,12 @@
-import React from 'react';
-import { Episode, Podcast } from '../../types';
+import React from "react";
+import { Episode, Podcast } from "../../types";
 import {
   PlayerInfo,
   PlayerControls,
   PlayerProgress,
   PlayerActions,
   PlayerQueue,
-} from './index';
+} from "./index";
 
 export interface PlayerPresentationProps {
   // Episode data
@@ -41,10 +41,10 @@ export interface PlayerPresentationProps {
 
 /**
  * PlayerPresentation - Pure presentation component for the audio player
- * 
+ *
  * Renders the player UI without any business logic or state management.
  * All state and handlers are received as props.
- * 
+ *
  * @example
  * ```tsx
  * <PlayerPresentation

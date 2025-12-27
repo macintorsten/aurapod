@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Episode, Podcast } from '../../types';
-import { storageService } from '../../services/storageService';
-import { PlayerPresentation } from './PlayerPresentation';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Episode, Podcast } from "../../types";
+import { storageService } from "../../services/storageService";
+import { PlayerPresentation } from "./PlayerPresentation";
 
 export interface PlayerContainerProps {
   episode: Episode;
@@ -12,7 +12,11 @@ export interface PlayerContainerProps {
   onClearQueue: () => void;
   onClose: () => void;
   onShare: () => void;
-  onProgress?: (episodeId: string, currentTime: number, duration: number) => void;
+  onProgress?: (
+    episodeId: string,
+    currentTime: number,
+    duration: number
+  ) => void;
   onReady?: () => void;
   autoPlay?: boolean;
 }
@@ -40,7 +44,9 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   // UI state
   const [showQueue, setShowQueue] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>(
+    undefined
+  );
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -49,7 +55,7 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   // Initialize audio element
   useEffect(() => {
     if (!episode.audioUrl) {
-      setErrorMessage('No audio URL available');
+      setErrorMessage("No audio URL available");
       setIsBuffering(false);
       return;
     }
@@ -100,44 +106,44 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
     };
 
     const handleError = () => {
-      setErrorMessage('Failed to load audio');
+      setErrorMessage("Failed to load audio");
       setIsBuffering(false);
       setIsPlaying(false);
     };
 
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('play', handlePlay);
-    audio.addEventListener('pause', handlePause);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('error', handleError);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("waiting", handleWaiting);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("error", handleError);
 
     // Auto-play if requested
     if (autoPlay) {
       audio.play().catch(() => {
-        setErrorMessage('Auto-play prevented by browser');
+        setErrorMessage("Auto-play prevented by browser");
         setIsPlaying(false);
       });
     }
 
     return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('play', handlePlay);
-      audio.removeEventListener('pause', handlePause);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('error', handleError);
-      
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("waiting", handleWaiting);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("error", handleError);
+
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
       }
-      
+
       audio.pause();
-      audio.src = '';
+      audio.src = "";
     };
   }, [episode.id, episode.audioUrl, autoPlay, onNext, onReady]);
 
@@ -167,35 +173,41 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
         return;
       }
 
       switch (e.key) {
-        case ' ':
+        case " ":
           e.preventDefault();
           togglePlay();
           break;
-        case 'ArrowLeft':
+        case "ArrowLeft":
           e.preventDefault();
           skipSeconds(-10);
           break;
-        case 'ArrowRight':
+        case "ArrowRight":
           e.preventDefault();
           skipSeconds(10);
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPlaying]); // Re-bind when isPlaying changes
 
   // Save progress helper
-  const saveProgress = useCallback((currentTime: number, duration: number) => {
-    storageService.updatePlayback(episode, podcast, currentTime, duration);
-    onProgress?.(episode.id, currentTime, duration);
-  }, [episode, podcast, onProgress]);
+  const saveProgress = useCallback(
+    (currentTime: number, duration: number) => {
+      storageService.updatePlayback(episode, podcast, currentTime, duration);
+      onProgress?.(episode.id, currentTime, duration);
+    },
+    [episode, podcast, onProgress]
+  );
 
   // Play/pause toggle
   const togglePlay = useCallback(() => {
@@ -206,25 +218,34 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
       saveProgress(audioRef.current.currentTime, audioRef.current.duration);
     } else {
       audioRef.current.play().catch((error) => {
-        setErrorMessage('Playback failed: ' + error.message);
+        setErrorMessage("Playback failed: " + error.message);
       });
     }
   }, [isPlaying, saveProgress]);
 
   // Skip forward/backward
-  const skipSeconds = useCallback((seconds: number) => {
-    if (!audioRef.current) return;
+  const skipSeconds = useCallback(
+    (seconds: number) => {
+      if (!audioRef.current) return;
 
-    audioRef.current.currentTime = Math.max(0, Math.min(duration, audioRef.current.currentTime + seconds));
-  }, [duration]);
+      audioRef.current.currentTime = Math.max(
+        0,
+        Math.min(duration, audioRef.current.currentTime + seconds)
+      );
+    },
+    [duration]
+  );
 
   // Seek to percentage
-  const seekToPercentage = useCallback((percentage: number) => {
-    if (!audioRef.current) return;
+  const seekToPercentage = useCallback(
+    (percentage: number) => {
+      if (!audioRef.current) return;
 
-    const newTime = (percentage / 100) * duration;
-    audioRef.current.currentTime = newTime;
-  }, [duration]);
+      const newTime = (percentage / 100) * duration;
+      audioRef.current.currentTime = newTime;
+    },
+    [duration]
+  );
 
   // Change playback speed
   const changePlaybackRate = useCallback((rate: number) => {

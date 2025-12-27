@@ -59,7 +59,7 @@ describe("PlayerContainer", () => {
   it("should render as part of the layout flow (not fixed)", () => {
     const { container } = render(<PlayerContainer {...defaultProps} />);
     const playerWrapper = container.querySelector(".shrink-0.z-50");
-    
+
     expect(playerWrapper).toBeTruthy();
     expect(playerWrapper?.classList.contains("shrink-0")).toBe(true);
     expect(playerWrapper?.classList.contains("fixed")).toBe(false);

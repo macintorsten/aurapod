@@ -1,5 +1,4 @@
-
-import { Theme } from './types';
+import { Theme } from "./types";
 
 export interface AppConfig {
   appName: string;
@@ -11,7 +10,7 @@ export interface AppConfig {
       searchUrl: string;
       trendingUrl: string;
       lookupUrl: string;
-    }
+    };
   };
   playback: {
     seekIncrement: number; // For arrow keys
@@ -22,7 +21,7 @@ export interface AppConfig {
     back: string;
     forward: string;
     next: string;
-    seekPrefix: 'digit' | 'arrow';
+    seekPrefix: "digit" | "arrow";
   };
 }
 
@@ -33,24 +32,24 @@ export const APP_CONFIG: AppConfig = {
   proxyUrls: [
     "https://api.allorigins.win/get?url=",
     "https://corsproxy.io/?url=",
-    "https://api.codetabs.com/v1/proxy?quest="
+    "https://api.codetabs.com/v1/proxy?quest=",
   ],
   providers: {
     itunes: {
       searchUrl: "https://itunes.apple.com/search",
       trendingUrl: "https://itunes.apple.com/us/rss/toppodcasts/limit=20/json",
-      lookupUrl: "https://itunes.apple.com/lookup"
-    }
+      lookupUrl: "https://itunes.apple.com/lookup",
+    },
   },
   playback: {
     seekIncrement: 5,
-    skipIncrement: 10
+    skipIncrement: 10,
   },
   shortcuts: {
-    playPause: ['k', ' '],
-    back: 'j',
-    forward: 'l',
-    next: 'n',
-    seekPrefix: 'digit'
+    playPause: ["k", " "],
+    back: "j",
+    forward: "l",
+    next: "n",
+    seekPrefix: "digit",
   },
 };
