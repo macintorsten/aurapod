@@ -17,6 +17,9 @@ export const APP_CONSTANTS = {
     buildDate: "2023-11-20",
   },
 
+  // Episodes
+  MAX_NEW_EPISODES_PER_PODCAST: 10,
+
   // Share data
   STANDALONE_PODCAST_ID_PREFIX: "standalone",
   DEFAULT_SHARED_PODCAST_TITLE: "Shared Frequency",

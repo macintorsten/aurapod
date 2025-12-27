@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Episode, Podcast } from '../../types';
 import { storageService } from '../../services/storageService';
-import { castService } from '../../services/castService';
-import { APP_CONFIG } from '../../config';
 import { PlayerPresentation } from './PlayerPresentation';
 
 export interface PlayerContainerProps {
@@ -38,10 +36,6 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
-
-  // Cast state
-  const [isCasting, setIsCasting] = useState(false);
-  const [castDeviceName, setCastDeviceName] = useState<string | undefined>(undefined);
 
   // UI state
   const [showQueue, setShowQueue] = useState(false);
@@ -147,32 +141,9 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
     };
   }, [episode.id, episode.audioUrl, autoPlay, onNext, onReady]);
 
-  // Initialize cast service
-  useEffect(() => {
-    castService.setEnabled(APP_CONFIG.cast.enabled);
-    castService.initialize();
-
-    const unsubscribeState = castService.onStateChange((connected, deviceName) => {
-      setIsCasting(connected);
-      setCastDeviceName(deviceName);
-    });
-
-    const unsubscribeMedia = castService.onMediaStatus((status) => {
-      if (status) {
-        setIsPlaying(status.isPlaying);
-        setCurrentTime(status.currentTime);
-      }
-    });
-
-    return () => {
-      unsubscribeState();
-      unsubscribeMedia();
-    };
-  }, []);
-
   // Start progress save interval when playing
   useEffect(() => {
-    if (isPlaying && !isCasting) {
+    if (isPlaying) {
       saveIntervalRef.current = setInterval(() => {
         if (audioRef.current) {
           saveProgress(audioRef.current.currentTime, audioRef.current.duration);
@@ -190,7 +161,7 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
         clearInterval(saveIntervalRef.current);
       }
     };
-  }, [isPlaying, isCasting]);
+  }, [isPlaying]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -230,48 +201,30 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
   const togglePlay = useCallback(() => {
     if (!audioRef.current) return;
 
-    if (isCasting) {
-      if (isPlaying) {
-        castService.pause();
-      } else {
-        castService.play();
-      }
+    if (isPlaying) {
+      audioRef.current.pause();
+      saveProgress(audioRef.current.currentTime, audioRef.current.duration);
     } else {
-      if (isPlaying) {
-        audioRef.current.pause();
-        saveProgress(audioRef.current.currentTime, audioRef.current.duration);
-      } else {
-        audioRef.current.play().catch((error) => {
-          setErrorMessage('Playback failed: ' + error.message);
-        });
-      }
+      audioRef.current.play().catch((error) => {
+        setErrorMessage('Playback failed: ' + error.message);
+      });
     }
-  }, [isCasting, isPlaying, saveProgress]);
+  }, [isPlaying, saveProgress]);
 
   // Skip forward/backward
   const skipSeconds = useCallback((seconds: number) => {
     if (!audioRef.current) return;
 
-    if (isCasting) {
-      const newTime = Math.max(0, Math.min(duration, currentTime + seconds));
-      castService.seek(newTime);
-    } else {
-      audioRef.current.currentTime = Math.max(0, Math.min(duration, audioRef.current.currentTime + seconds));
-    }
-  }, [isCasting, currentTime, duration]);
+    audioRef.current.currentTime = Math.max(0, Math.min(duration, audioRef.current.currentTime + seconds));
+  }, [duration]);
 
   // Seek to percentage
   const seekToPercentage = useCallback((percentage: number) => {
     if (!audioRef.current) return;
 
     const newTime = (percentage / 100) * duration;
-    
-    if (isCasting) {
-      castService.seek(newTime);
-    } else {
-      audioRef.current.currentTime = newTime;
-    }
-  }, [duration, isCasting]);
+    audioRef.current.currentTime = newTime;
+  }, [duration]);
 
   // Change playback speed
   const changePlaybackRate = useCallback((rate: number) => {
@@ -282,13 +235,6 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
     setShowSpeedMenu(false);
   }, []);
 
-  // Cast episode
-  const handleCast = useCallback(() => {
-    // Cast functionality - would need to be implemented in castService
-    // For now, this is a placeholder
-    console.log('Cast functionality not yet implemented');
-  }, []);
-
   return (
     <PlayerPresentation
       episode={episode}
@@ -296,9 +242,6 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
       queue={queue}
       isPlaying={isPlaying}
       isBuffering={isBuffering}
-      isCasting={isCasting}
-      isCastAvailable={false}
-      castDeviceName={castDeviceName}
       currentTime={currentTime}
       duration={duration}
       playbackRate={playbackRate}
@@ -311,7 +254,6 @@ export const PlayerContainer: React.FC<PlayerContainerProps> = ({
       onSeek={seekToPercentage}
       onChangeSpeed={() => setShowSpeedMenu(!showSpeedMenu)}
       onToggleQueue={() => setShowQueue(!showQueue)}
-      onToggleCast={handleCast}
       onShare={onShare}
       onClose={onClose}
       onRemoveFromQueue={onRemoveFromQueue}

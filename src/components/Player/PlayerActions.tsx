@@ -3,26 +3,20 @@ import { Episode } from "../../types";
 
 interface PlayerActionsProps {
   hasQueue: boolean;
-  isCastAvailable: boolean;
-  isCasting: boolean;
   playbackRate: number;
   speeds: number[];
   onShare: () => void;
   onToggleQueue: () => void;
-  onToggleCast: () => void;
   onChangeSpeed: () => void;
   onClose: () => void;
 }
 
 export const PlayerActions: React.FC<PlayerActionsProps> = ({
   hasQueue,
-  isCastAvailable,
-  isCasting,
   playbackRate,
   speeds,
   onShare,
   onToggleQueue,
-  onToggleCast,
   onChangeSpeed,
   onClose,
 }) => {
@@ -43,20 +37,6 @@ export const PlayerActions: React.FC<PlayerActionsProps> = ({
           title="Queue"
         >
           <i className="fa-solid fa-list text-xs"></i>
-        </button>
-      )}
-
-      {isCastAvailable && (
-        <button
-          onClick={onToggleCast}
-          className={`w-9 h-9 rounded-full transition flex items-center justify-center ${
-            isCasting
-              ? "bg-indigo-600 text-white"
-              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          }`}
-          title="Cast"
-        >
-          <i className="fa-solid fa-tv text-xs"></i>
         </button>
       )}
 

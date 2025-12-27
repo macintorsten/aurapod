@@ -75,7 +75,7 @@ describe('errorHandlers', () => {
     });
 
     it('should handle all error categories', () => {
-      const categories: ErrorCategory[] = ['network', 'feed', 'playback', 'storage', 'cast', 'share'];
+      const categories: ErrorCategory[] = ['network', 'feed', 'playback', 'storage', 'share', 'parsing', 'system'];
       
       categories.forEach(category => {
         const error = createError(category, 'Test error');
@@ -112,7 +112,7 @@ describe('errorHandlers', () => {
     });
 
     it('should log all error categories correctly', () => {
-      const categories: ErrorCategory[] = ['network', 'feed', 'playback', 'storage', 'cast', 'share'];
+      const categories: ErrorCategory[] = ['network', 'feed', 'playback', 'storage', 'share', 'parsing', 'system'];
       
       categories.forEach(category => {
         const error: AppError = {

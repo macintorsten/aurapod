@@ -22,11 +22,6 @@ export interface PlayerPresentationProps {
   playbackRate: number;
   speeds: number[];
 
-  // Cast state
-  isCasting: boolean;
-  isCastAvailable: boolean;
-  castDeviceName?: string;
-
   // UI state
   showQueue: boolean;
 
@@ -38,7 +33,6 @@ export interface PlayerPresentationProps {
   onSeek: (percent: number) => void;
   onShare: () => void;
   onToggleQueue: () => void;
-  onToggleCast: () => void;
   onChangeSpeed: () => void;
   onClose: () => void;
   onRemoveFromQueue: (id: string) => void;
@@ -68,9 +62,6 @@ export const PlayerPresentation: React.FC<PlayerPresentationProps> = ({
   queue,
   isPlaying,
   isBuffering,
-  isCasting,
-  isCastAvailable,
-  castDeviceName,
   currentTime,
   duration,
   playbackRate,
@@ -83,7 +74,6 @@ export const PlayerPresentation: React.FC<PlayerPresentationProps> = ({
   onSeek,
   onShare,
   onToggleQueue,
-  onToggleCast,
   onChangeSpeed,
   onClose,
   onRemoveFromQueue,
@@ -98,8 +88,6 @@ export const PlayerPresentation: React.FC<PlayerPresentationProps> = ({
               episode={episode}
               podcast={podcast}
               isBuffering={isBuffering}
-              isCasting={isCasting}
-              castDeviceName={castDeviceName}
             />
 
             <div className="flex flex-col items-center gap-2 flex-[2] w-full">
@@ -120,13 +108,10 @@ export const PlayerPresentation: React.FC<PlayerPresentationProps> = ({
 
             <PlayerActions
               hasQueue={queue.length > 0}
-              isCastAvailable={isCastAvailable}
-              isCasting={isCasting}
               playbackRate={playbackRate}
               speeds={speeds}
               onShare={onShare}
               onToggleQueue={onToggleQueue}
-              onToggleCast={onToggleCast}
               onChangeSpeed={onChangeSpeed}
               onClose={onClose}
             />

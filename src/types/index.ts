@@ -7,7 +7,6 @@ export type ErrorCategory =
   | "system"
   | "feed"
   | "storage"
-  | "cast"
   | "share";
 
 export interface AppError {

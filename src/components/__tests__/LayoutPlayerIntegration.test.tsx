@@ -13,24 +13,6 @@ vi.mock("../../services/storageService", () => ({
   },
 }));
 
-vi.mock("../../services/castService", () => ({
-  castService: {
-    setEnabled: vi.fn(),
-    initialize: vi.fn(() => Promise.resolve()),
-    onStateChange: vi.fn(() => vi.fn()),
-    onMediaStatus: vi.fn(() => vi.fn()),
-    isPlaying: vi.fn(() => false),
-    pause: vi.fn(),
-    play: vi.fn(),
-    getCurrentTime: vi.fn(() => 0),
-    getDuration: vi.fn(() => 0),
-    seek: vi.fn(),
-    loadMedia: vi.fn(() => Promise.resolve()),
-    endSession: vi.fn(),
-    requestSession: vi.fn(() => Promise.resolve()),
-  },
-}));
-
 const mockPodcasts: Podcast[] = [
   {
     id: "pod1",

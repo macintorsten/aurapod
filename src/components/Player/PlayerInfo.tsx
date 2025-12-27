@@ -5,16 +5,12 @@ interface PlayerInfoProps {
   episode: Episode;
   podcast: Podcast;
   isBuffering: boolean;
-  isCasting: boolean;
-  castDeviceName?: string;
 }
 
 export const PlayerInfo: React.FC<PlayerInfoProps> = ({
   episode,
   podcast,
   isBuffering,
-  isCasting,
-  castDeviceName,
 }) => {
   return (
     <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
@@ -35,14 +31,7 @@ export const PlayerInfo: React.FC<PlayerInfoProps> = ({
           {episode.title}
         </h4>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-medium">
-          {isCasting ? (
-            <span className="flex items-center gap-1.5">
-              <i className="fa-solid fa-tv text-indigo-600"></i>
-              Casting to {castDeviceName || "Device"}
-            </span>
-          ) : (
-            podcast.title
-          )}
+          {podcast.title}
         </p>
       </div>
     </div>

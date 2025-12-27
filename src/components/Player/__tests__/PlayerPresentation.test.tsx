@@ -18,14 +18,11 @@ describe('PlayerPresentation', () => {
     queue: [],
     isPlaying: false,
     isBuffering: false,
-    isCasting: false,
-    castDeviceName: undefined,
     currentTime: 0,
     duration: 100,
     playbackRate: 1,
     speeds: [0.5, 0.8, 1, 1.2, 1.5, 1.7, 2],
     showQueue: false,
-    isCastAvailable: false,
     onTogglePlay: vi.fn(),
     onSkipBackward: vi.fn(),
     onSkipForward: vi.fn(),
@@ -33,7 +30,6 @@ describe('PlayerPresentation', () => {
     onSeek: vi.fn(),
     onShare: vi.fn(),
     onToggleQueue: vi.fn(),
-    onToggleCast: vi.fn(),
     onChangeSpeed: vi.fn(),
     onClose: vi.fn(),
     onRemoveFromQueue: vi.fn(),
@@ -128,17 +124,16 @@ describe('PlayerPresentation', () => {
     expect(spinner).toBeInTheDocument();
   });
 
-  it('displays casting state with device name', () => {
+  it('shows podcast title with casting removed', () => {
     render(
       <PlayerPresentation
         {...defaultProps}
-        isCasting={true}
-        castDeviceName="Living Room TV"
       />,
       { withProviders: false }
     );
     
-    expect(screen.getByText(/living room tv/i)).toBeInTheDocument();
+    expect(screen.getByText(mockPodcast.title)).toBeInTheDocument();
+    expect(screen.queryByText(/casting to/i)).not.toBeInTheDocument();
   });
 
   it('calls onShare when share button clicked', async () => {
@@ -181,22 +176,15 @@ describe('PlayerPresentation', () => {
     expect(screen.getByTitle('Queue')).toBeInTheDocument();
   });
 
-  it('does not show cast button when cast is unavailable', () => {
+  it('never renders cast button even when availability is provided', () => {
     render(
-      <PlayerPresentation {...defaultProps} isCastAvailable={false} />,
+      <PlayerPresentation
+        {...defaultProps}
+      />,
       { withProviders: false }
     );
     
     expect(screen.queryByTitle('Cast')).not.toBeInTheDocument();
-  });
-
-  it('shows cast button when cast is available', () => {
-    render(
-      <PlayerPresentation {...defaultProps} isCastAvailable={true} />,
-      { withProviders: false }
-    );
-    
-    expect(screen.getByTitle('Cast')).toBeInTheDocument();
   });
 
   it('displays current playback speed', () => {

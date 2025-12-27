@@ -4,11 +4,9 @@ import { act } from '@testing-library/react';
 import { PlayerContainer } from '../PlayerContainer';
 import { createMockEpisode, createMockPodcast } from '../../../test-utils';
 import * as storageService from '../../../services/storageService';
-import * as castService from '../../../services/castService';
 
 // Mock services
 vi.mock('../../../services/storageService');
-vi.mock('../../../services/castService');
 
 // Mock Audio API
 class MockAudio {
@@ -86,13 +84,6 @@ describe('PlayerContainer', () => {
     // Setup default storage service mocks
     vi.spyOn(storageService.storageService, 'getHistory').mockReturnValue({});
     vi.spyOn(storageService.storageService, 'updatePlayback').mockImplementation(() => {});
-    
-    // Setup default cast service mocks
-    vi.spyOn(castService.castService, 'setEnabled').mockImplementation(() => {});
-    vi.spyOn(castService.castService, 'initialize').mockResolvedValue(false);
-    vi.spyOn(castService.castService, 'onStateChange').mockReturnValue(() => {});
-    vi.spyOn(castService.castService, 'onMediaStatus').mockReturnValue(() => {});
-    vi.spyOn(castService.castService, 'isPlaying').mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -237,28 +228,6 @@ describe('PlayerContainer', () => {
     
     // Should start from beginning for completed episodes
     expect(storageService.storageService.getHistory).toHaveBeenCalled();
-  });
-
-  it('initializes cast service on mount', () => {
-    const setEnabledSpy = vi.spyOn(castService.castService, 'setEnabled');
-    const initializeSpy = vi.spyOn(castService.castService, 'initialize');
-    
-    render(<PlayerContainer {...defaultProps} />);
-    
-    expect(setEnabledSpy).toHaveBeenCalled();
-    expect(initializeSpy).toHaveBeenCalled();
-  });
-
-  it('cleans up cast service listeners on unmount', () => {
-    const unsubscribe = vi.fn();
-    vi.spyOn(castService.castService, 'onStateChange').mockReturnValue(unsubscribe);
-    vi.spyOn(castService.castService, 'onMediaStatus').mockReturnValue(unsubscribe);
-    
-    const { unmount } = render(<PlayerContainer {...defaultProps} />);
-    
-    unmount();
-    
-    expect(unsubscribe).toHaveBeenCalledTimes(2);
   });
 
   it('calls onProgress callback when provided', async () => {
